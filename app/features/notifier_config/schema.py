@@ -14,12 +14,12 @@ class NotifierConfigCreate(BaseModel):
     """Request body for attaching a notifier to a rule.
 
     Attributes:
-        rule_id:        Primary key of the rule to attach to.
+        rule_id:        PocketBase record ID of the rule to attach to.
         notifier_type:  Registry key, e.g. ``email``, ``webhook``.
         config_json:    Notifier-specific settings as a free-form dict.
     """
 
-    rule_id: int
+    rule_id: str
     notifier_type: str = Field(..., min_length=1)
     config_json: dict[str, Any] = {}
 
@@ -40,14 +40,14 @@ class NotifierConfigOut(BaseModel):
     """Response model for a notifier config record.
 
     Attributes:
-        id:             Database primary key.
-        rule_id:        Foreign key to the owning rule.
+        id:             PocketBase record ID.
+        rule_id:        PocketBase record ID of the owning rule.
         notifier_type:  Registry key for this notifier.
         config_json:    JSON string of notifier settings.
     """
 
-    id: int
-    rule_id: int
+    id: str
+    rule_id: str
     notifier_type: str
     config_json: str
 

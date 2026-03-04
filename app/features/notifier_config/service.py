@@ -1,16 +1,14 @@
 """
 Business logic for the notifier_config feature.
 
-Validates inputs, coordinates repo calls, and triggers scheduler
-reloads after config changes. No FastAPI imports, no direct DB queries.
+Single responsibility: validate inputs, coordinate repo calls, and
+trigger scheduler reloads. No FastAPI imports, no DB queries.
+All PocketBaseError exceptions propagate to the router/handler layer.
 """
 
 import logging
 
-from sqlalchemy.orm import Session
-
 from app.core.exceptions import NotifierConfigNotFoundError, RuleNotFoundError
-from app.db.models import NotifierConfigModel
 from app.engine import scheduler as sched
 from app.engine.registry import NOTIFIER_REGISTRY
 from app.features.notifier_config import repo
@@ -23,131 +21,127 @@ from app.features.rules import repo as rule_repo
 logger = logging.getLogger(__name__)
 
 
-def list_configs(db: Session, rule_id: int) -> list[NotifierConfigModel]:
+def list_configs(rule_id: str) -> list[dict]:
     """Return all notifier configs for a rule.
 
     Args:
-        db:      Active database session.
-        rule_id: Primary key of the parent rule.
+        rule_id: PocketBase record ID of the parent rule.
 
     Returns:
-        List of ``NotifierConfigModel`` instances.
+        List of notifier config domain dicts.
 
     Raises:
         RuleNotFoundError: If the rule does not exist.
+        PocketBaseError:   On network or HTTP failure.
     """
-    _assert_rule_exists(db, rule_id)
-    return repo.get_all_for_rule(db, rule_id)
+    _assert_rule_exists(rule_id)
+    return repo.get_all_for_rule(rule_id)
 
 
-def get_config(db: Session, config_id: int) -> NotifierConfigModel:
+def get_config(config_id: str) -> dict:
     """Fetch a single notifier config, raising if not found.
 
     Args:
-        db:        Active database session.
-        config_id: Primary key of the config.
+        config_id: PocketBase record ID string.
 
     Returns:
-        ``NotifierConfigModel`` instance.
+        Notifier config domain dict.
 
     Raises:
         NotifierConfigNotFoundError: If no config with ``config_id`` exists.
+        PocketBaseError:             On network failure.
     """
-    config = repo.get_by_id(db, config_id)
+    config = repo.get_by_id(config_id)
     if not config:
         raise NotifierConfigNotFoundError(config_id)
     return config
 
 
-def create_config(
-    db: Session, payload: NotifierConfigCreate
-) -> NotifierConfigModel:
+def create_config(payload: NotifierConfigCreate) -> dict:
     """Validate and create a new notifier config, then reload the scheduler.
 
     Args:
-        db:      Active database session.
         payload: Validated ``NotifierConfigCreate`` request body.
 
     Returns:
-        Saved ``NotifierConfigModel`` with auto-generated ``id``.
+        Created notifier config domain dict.
 
     Raises:
         RuleNotFoundError: If the target rule does not exist.
-        ValueError: If the notifier type is not in the registry.
+        RuleConfigError:   If the notifier type is not in the registry.
+        PocketBaseError:   On network or HTTP failure.
     """
-    _assert_rule_exists(db, payload.rule_id)
+    _assert_rule_exists(str(payload.rule_id))
     _validate_notifier_type(payload.notifier_type)
-    config = repo.create(db, payload)
-    rule = rule_repo.get_by_id(db, payload.rule_id)
+    config = repo.create(payload)
+    rule = rule_repo.get_by_id(str(payload.rule_id))
     if rule:
-        sched.reload_rule(rule.name)
+        sched.reload_rule(rule["name"])
     logger.info(
-        "Created notifier config '%s' for rule_id=%d",
+        "Created notifier config '%s' for rule_id=%s",
         payload.notifier_type,
         payload.rule_id,
     )
     return config
 
 
-def update_config(
-    db: Session, config_id: int, payload: NotifierConfigUpdate
-) -> NotifierConfigModel:
+def update_config(config_id: str, payload: NotifierConfigUpdate) -> dict:
     """Update a notifier config's settings, then reload the scheduler.
 
     Args:
-        db:        Active database session.
-        config_id: Primary key of the config to update.
+        config_id: PocketBase record ID string.
         payload:   Fields to overwrite.
 
     Returns:
-        Updated ``NotifierConfigModel``.
+        Updated notifier config domain dict.
 
     Raises:
         NotifierConfigNotFoundError: If the config does not exist.
+        PocketBaseError:             On network or HTTP failure.
     """
-    config = get_config(db, config_id)
-    updated = repo.update(db, config, payload)
-    rule = rule_repo.get_by_id(db, updated.rule_id)
+    config = get_config(config_id)
+    updated = repo.update(config, payload)
+    rule = rule_repo.get_by_id(updated["rule_id"])
     if rule:
-        sched.reload_rule(rule.name)
+        sched.reload_rule(rule["name"])
     return updated
 
 
-def delete_config(db: Session, config_id: int) -> None:
+def delete_config(config_id: str) -> None:
     """Delete a notifier config and reload the scheduler.
 
     Args:
-        db:        Active database session.
-        config_id: Primary key of the config to delete.
+        config_id: PocketBase record ID string.
 
     Returns:
         None
 
     Raises:
         NotifierConfigNotFoundError: If the config does not exist.
+        PocketBaseError:             On network or HTTP failure.
     """
-    config = get_config(db, config_id)
-    rule = rule_repo.get_by_id(db, config.rule_id)
-    repo.delete(db, config)
+    config = get_config(config_id)
+    rule = rule_repo.get_by_id(config["rule_id"])
+    repo.delete(config)
     if rule:
-        sched.reload_rule(rule.name)
-    logger.info("Deleted notifier config id=%d", config_id)
+        sched.reload_rule(rule["name"])
+    logger.info("Deleted notifier config id=%s", config_id)
 
 
-def _assert_rule_exists(db: Session, rule_id: int) -> None:
-    """Raise if a rule with ``rule_id`` does not exist.
+def _assert_rule_exists(rule_id: str) -> None:
+    """Raise if a rule with ``rule_id`` does not exist in PocketBase.
 
     Args:
-        db:      Active database session.
-        rule_id: Primary key to check.
+        rule_id: PocketBase record ID string.
 
     Returns:
         None
 
     Raises:
         RuleNotFoundError: If no matching rule is found.
+        PocketBaseError:   On network failure.
     """
-    if not rule_repo.get_by_id(db, rule_id):
+    if not rule_repo.get_by_id(rule_id):
         raise RuleNotFoundError(rule_id)
 
 
@@ -161,10 +155,11 @@ def _validate_notifier_type(notifier_type: str) -> None:
         None
 
     Raises:
-        ValueError: If the type is not registered.
+        RuleConfigError: If the type is not registered.
     """
     if notifier_type not in NOTIFIER_REGISTRY:
-        raise ValueError(
+        from app.core.exceptions import RuleConfigError
+        raise RuleConfigError(
             f"Notifier type '{notifier_type}' not found in registry. "
             f"Available: {list(NOTIFIER_REGISTRY.keys())}"
         )

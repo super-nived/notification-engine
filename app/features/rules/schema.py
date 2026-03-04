@@ -8,7 +8,7 @@ No logic, no DB calls — data shapes only.
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class RuleCreate(BaseModel):
@@ -79,7 +79,7 @@ class RuleOut(BaseModel):
         last_status: Status of last execution.
     """
 
-    id: int
+    id: str
     name: str
     rule_class: str
     schedule: str
@@ -87,7 +87,15 @@ class RuleOut(BaseModel):
     enabled: bool
     params_json: str
     created_at: datetime
-    last_run_at: datetime | None
-    last_status: str | None
+    last_run_at: datetime | None = None
+    last_status: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("last_run_at", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v: Any) -> Any:
+        """Convert empty string from PocketBase to None."""
+        if v == "" or v is None:
+            return None
+        return v

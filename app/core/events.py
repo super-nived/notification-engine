@@ -12,7 +12,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from app.core.logging import configure_logging
-from app.db.engine import init_db
+from app.db.pb_client import authenticate
 from app.engine.scheduler import start_scheduler, stop_scheduler
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     On startup:
     - Configures logging.
-    - Initialises the internal SQLite database.
+    - Authenticates with PocketBase admin API.
     - Starts the background scheduler and loads all enabled rules.
 
     On shutdown:
@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     configure_logging()
     logger.info("Starting Notification Rule Engine")
-    init_db()
+    authenticate()
     start_scheduler()
     yield
     logger.info("Shutting down Notification Rule Engine")

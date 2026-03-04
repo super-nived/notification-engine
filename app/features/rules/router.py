@@ -1,14 +1,12 @@
 """
 HTTP endpoints for rule management.
 
-All routes are thin — they validate input, call the service layer,
-and return a standard response. No business logic here.
+Single responsibility: validate HTTP input, call the service layer,
+return a standard response. No business logic here.
 """
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter
 
-from app.db.engine import get_db
 from app.features.rules import service
 from app.features.rules.schema import (
     RuleCreate,
@@ -23,18 +21,18 @@ router = APIRouter(prefix="/rules", tags=["Rules"])
 
 
 @router.get("/", response_model=dict)
-def list_rules(db: Session = Depends(get_db)):
+def list_rules():
     """List all registered rules.
 
     Returns:
         Standard success response containing a list of rule objects.
     """
-    rules = [RuleOut.model_validate(r) for r in service.list_rules(db)]
+    rules = [RuleOut.model_validate(r) for r in service.list_rules()]
     return success(data=rules, message="Rules fetched")
 
 
 @router.post("/", response_model=dict, status_code=201)
-def create_rule(payload: RuleCreate, db: Session = Depends(get_db)):
+def create_rule(payload: RuleCreate):
     """Create and schedule a new rule.
 
     Args:
@@ -43,97 +41,91 @@ def create_rule(payload: RuleCreate, db: Session = Depends(get_db)):
     Returns:
         Standard success response with the created rule.
     """
-    rule = service.create_rule(db, payload)
+    rule = service.create_rule(payload)
     return success(data=RuleOut.model_validate(rule), message="Rule created")
 
 
 @router.get("/{rule_id}", response_model=dict)
-def get_rule(rule_id: int, db: Session = Depends(get_db)):
-    """Fetch a single rule by id.
+def get_rule(rule_id: str):
+    """Fetch a single rule by PocketBase record ID.
 
     Args:
-        rule_id: Primary key of the rule.
+        rule_id: PocketBase record ID string.
 
     Returns:
         Standard success response with the rule object.
     """
-    rule = service.get_rule(db, rule_id)
+    rule = service.get_rule(rule_id)
     return success(data=RuleOut.model_validate(rule))
 
 
 @router.patch("/{rule_id}", response_model=dict)
-def update_rule(
-    rule_id: int, payload: RuleUpdate, db: Session = Depends(get_db)
-):
+def update_rule(rule_id: str, payload: RuleUpdate):
     """Update a rule's schedule or description.
 
     Args:
-        rule_id: Primary key of the rule to update.
+        rule_id: PocketBase record ID string.
         payload: Fields to overwrite.
 
     Returns:
         Standard success response with the updated rule.
     """
-    rule = service.update_rule(db, rule_id, payload)
+    rule = service.update_rule(rule_id, payload)
     return success(data=RuleOut.model_validate(rule), message="Rule updated")
 
 
 @router.patch("/{rule_id}/params", response_model=dict)
-def update_params(
-    rule_id: int, payload: RuleParamsUpdate, db: Session = Depends(get_db)
-):
+def update_params(rule_id: str, payload: RuleParamsUpdate):
     """Update user-editable rule parameters.
 
     Args:
-        rule_id: Primary key of the rule.
+        rule_id: PocketBase record ID string.
         payload: New parameter values to merge.
 
     Returns:
         Standard success response with the updated rule.
     """
-    rule = service.update_params(db, rule_id, payload)
+    rule = service.update_params(rule_id, payload)
     return success(data=RuleOut.model_validate(rule), message="Params updated")
 
 
 @router.patch("/{rule_id}/toggle", response_model=dict)
-def toggle_rule(
-    rule_id: int, payload: RuleToggle, db: Session = Depends(get_db)
-):
+def toggle_rule(rule_id: str, payload: RuleToggle):
     """Enable or disable a rule.
 
     Args:
-        rule_id: Primary key of the rule.
+        rule_id: PocketBase record ID string.
         payload: Toggle body with ``enabled`` boolean.
 
     Returns:
         Standard success response with the updated rule.
     """
-    rule = service.toggle_rule(db, rule_id, payload.enabled)
+    rule = service.toggle_rule(rule_id, payload.enabled)
     return success(data=RuleOut.model_validate(rule), message="Rule toggled")
 
 
 @router.delete("/{rule_id}", status_code=204)
-def delete_rule(rule_id: int, db: Session = Depends(get_db)):
+def delete_rule(rule_id: str):
     """Delete a rule and remove its scheduled job.
 
     Args:
-        rule_id: Primary key of the rule to delete.
+        rule_id: PocketBase record ID string.
 
     Returns:
         No content (204).
     """
-    service.delete_rule(db, rule_id)
+    service.delete_rule(rule_id)
 
 
 @router.post("/{rule_id}/run", response_model=dict)
-def run_now(rule_id: int, db: Session = Depends(get_db)):
+def run_now(rule_id: str):
     """Trigger a rule to execute immediately.
 
     Args:
-        rule_id: Primary key of the rule to run.
+        rule_id: PocketBase record ID string.
 
     Returns:
         Standard success response confirming the trigger.
     """
-    service.run_rule_now(db, rule_id)
+    service.run_rule_now(rule_id)
     return success(message="Rule triggered")

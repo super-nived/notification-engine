@@ -1,36 +1,43 @@
 """
 Data access functions for the logs feature.
 
-Thin wrappers that delegate to ``app.db.repositories``. No business
-logic — only query composition specific to execution logs.
+Single responsibility: delegate execution log queries to the
+PocketBase repository layer. No business logic here.
+All PocketBaseError exceptions propagate to the service layer.
 """
 
-from sqlalchemy.orm import Session
+import logging
 
-from app.db import repositories as base_repo
-from app.db.models import ExecutionLog
+from app.db import pb_repositories as pb
 
-
-def get_for_rule(db: Session, rule_name: str) -> list[ExecutionLog]:
-    """Return all execution logs for a specific rule.
-
-    Args:
-        db:        Active database session.
-        rule_name: Name of the rule to filter by.
-
-    Returns:
-        List of ``ExecutionLog`` instances ordered by ``started_at`` desc.
-    """
-    return base_repo.get_logs_for_rule(db, rule_name)
+logger = logging.getLogger(__name__)
 
 
-def get_all(db: Session) -> list[ExecutionLog]:
-    """Return all execution logs across all rules.
+def get_for_rule(rule_name: str) -> list[dict]:
+    """Return execution logs for a specific rule, newest first.
 
     Args:
-        db: Active database session.
+        rule_name: Unique name of the rule to filter by.
 
     Returns:
-        List of ``ExecutionLog`` instances ordered by ``run_at`` desc.
+        List of execution log domain dicts.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
-    return base_repo.get_all_logs(db)
+    return pb.get_logs_for_rule(rule_name)
+
+
+def get_all() -> list[dict]:
+    """Return all execution logs across all rules, newest first.
+
+    Args:
+        None
+
+    Returns:
+        List of execution log domain dicts.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
+    """
+    return pb.get_all_logs()

@@ -838,7 +838,7 @@
       <div style="display:flex;gap:10px;margin-bottom:16px;align-items:flex-end">
         <div class="field" style="flex:1">
           <label>Rule ID</label>
-          <input id="nc-rule-id" type="number" placeholder="1" />
+          <input id="nc-rule-id" type="text" placeholder="e.g. bz7l9a8f8wsdo0x" />
         </div>
         <button class="btn btn-ghost" onclick="loadNotifiersForRule()">Fetch</button>
       </div>
@@ -884,7 +884,7 @@
       <div class="form-grid">
         <div class="field">
           <label>Rule ID</label>
-          <input id="an-rule-id" type="number" placeholder="1" />
+          <input id="an-rule-id" type="text" placeholder="e.g. bz7l9a8f8wsdo0x" />
         </div>
         <div class="field">
           <label>Notifier Type</label>
@@ -1111,7 +1111,7 @@
         <td><span class="mono">${r.schedule}</span></td>
         <td>
           <label class="toggle">
-            <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRule(${r.id}, this.checked)" />
+            <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRule('${r.id}', this.checked)" />
             <span class="toggle-slider"></span>
           </label>
         </td>
@@ -1119,9 +1119,9 @@
         <td>${statusBadge(r.last_status)}</td>
         <td>
           <div style="display:flex;gap:5px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" onclick="openRuleDetail(${r.id})">Edit</button>
-            <button class="btn btn-primary btn-sm" onclick="runNow(${r.id})">▶ Run</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteRule(${r.id})">🗑</button>
+            <button class="btn btn-ghost btn-sm" onclick="openRuleDetail('${r.id}')">Edit</button>
+            <button class="btn btn-primary btn-sm" onclick="runNow('${r.id}')">▶ Run</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteRule('${r.id}')">🗑</button>
           </div>
         </td>
       </tr>`).join('');
@@ -1258,8 +1258,8 @@
         <td><span class="mono" style="font-size:11px">${c.config_json}</span></td>
         <td>
           <div style="display:flex;gap:5px">
-            <button class="btn btn-ghost btn-sm" onclick="openEditNotifier(${c.id}, \`${c.config_json.replace(/`/g, '\\`')}\`)">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteNotifier(${c.id})">🗑</button>
+            <button class="btn btn-ghost btn-sm" onclick="openEditNotifier('${c.id}', \`${c.config_json.replace(/`/g, '\\`')}\`)">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteNotifier('${c.id}')">🗑</button>
           </div>
         </td>
       </tr>`).join('');
@@ -1311,7 +1311,7 @@
   }
 
   async function submitAddNotifier() {
-    const rule_id = parseInt(document.getElementById('an-rule-id').value);
+    const rule_id = document.getElementById('an-rule-id').value.trim();
     const notifier_type = document.getElementById('an-type').value;
     const configRaw = document.getElementById('an-config').value.trim();
 

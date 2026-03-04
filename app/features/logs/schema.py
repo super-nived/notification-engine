@@ -6,15 +6,16 @@ No logic, no DB calls — data shapes only.
 """
 
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class LogOut(BaseModel):
     """Response model for a single execution log entry.
 
     Attributes:
-        id:           Database primary key.
+        id:           PocketBase record ID.
         rule_name:    Name of the rule that was executed.
         started_at:   When the execution began.
         finished_at:  When the execution completed.
@@ -23,15 +24,23 @@ class LogOut(BaseModel):
         error:        Error message if the run failed, else ``None``.
     """
 
-    id: int
+    id: str
     rule_name: str
-    started_at: datetime
-    finished_at: datetime | None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
     status: str
-    events_count: int
-    error: str | None
+    events_count: int = 0
+    error: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("started_at", "finished_at", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v: Any) -> Any:
+        """Convert empty string from PocketBase to None."""
+        if v == "" or v is None:
+            return None
+        return v
 
 
 class LogListParams(BaseModel):

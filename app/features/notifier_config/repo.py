@@ -1,98 +1,102 @@
 """
 Data access functions for the notifier_config feature.
 
-Thin wrappers that delegate to ``app.db.repositories``. No business
-logic — only query composition specific to notifier configs.
+Single responsibility: translate NotifierConfig schemas into
+PocketBase repository calls. No business logic here.
+All PocketBaseError exceptions propagate to the service layer.
 """
 
 import json
+import logging
 
-from sqlalchemy.orm import Session
-
-from app.db import repositories as base_repo
-from app.db.models import NotifierConfigModel
+from app.db import pb_repositories as pb
 from app.features.notifier_config.schema import (
     NotifierConfigCreate,
     NotifierConfigUpdate,
 )
 
+logger = logging.getLogger(__name__)
 
-def get_all_for_rule(db: Session, rule_id: int) -> list[NotifierConfigModel]:
+
+def get_all_for_rule(rule_id: str) -> list[dict]:
     """Return all notifier configs attached to a rule.
 
     Args:
-        db:      Active database session.
-        rule_id: Primary key of the parent rule.
+        rule_id: PocketBase record ID of the parent rule.
 
     Returns:
-        List of ``NotifierConfigModel`` instances.
+        List of notifier config domain dicts.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
-    return base_repo.get_notifiers_for_rule(db, rule_id)
+    return pb.get_notifiers_for_rule(rule_id)
 
 
-def get_by_id(db: Session, config_id: int) -> NotifierConfigModel | None:
-    """Fetch a single notifier config by primary key.
+def get_by_id(config_id: str) -> dict | None:
+    """Fetch a notifier config by its PocketBase record ID.
 
     Args:
-        db:        Active database session.
-        config_id: Primary key of the notifier config.
+        config_id: PocketBase record ID string.
 
     Returns:
-        ``NotifierConfigModel`` if found, else ``None``.
+        Notifier config domain dict, or ``None`` if not found.
+
+    Raises:
+        PocketBaseError: On network failure.
     """
-    return base_repo.get_notifier_config_by_id(db, config_id)
+    return pb.get_notifier_by_id(config_id)
 
 
-def create(
-    db: Session, payload: NotifierConfigCreate
-) -> NotifierConfigModel:
-    """Insert a new notifier config into the database.
+def create(payload: NotifierConfigCreate) -> dict:
+    """Create a new notifier config in PocketBase.
 
     Args:
-        db:      Active database session.
-        payload: Validated ``NotifierConfigCreate`` request body.
+        payload: Validated ``NotifierConfigCreate`` schema instance.
 
     Returns:
-        Saved ``NotifierConfigModel`` with auto-generated ``id``.
+        Created notifier config domain dict.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
-    config = NotifierConfigModel(
-        rule_id=payload.rule_id,
-        notifier_type=payload.notifier_type,
-        config_json=json.dumps(payload.config_json),
-    )
-    return base_repo.create_notifier_config(db, config)
+    data = {
+        "rule_id": str(payload.rule_id),
+        "notifier_type": payload.notifier_type,
+        "config_json": json.dumps(payload.config_json or {}),
+    }
+    return pb.create_notifier_config(data)
 
 
-def update(
-    db: Session,
-    config: NotifierConfigModel,
-    payload: NotifierConfigUpdate,
-) -> NotifierConfigModel:
-    """Apply a partial update to a notifier config's settings.
+def update(config: dict, payload: NotifierConfigUpdate) -> dict:
+    """Update the config_json on an existing notifier config.
 
     Args:
-        db:      Active database session.
-        config:  Existing ``NotifierConfigModel`` to update.
-        payload: ``NotifierConfigUpdate`` with optional fields.
+        config:  Existing notifier config domain dict (must have ``id``).
+        payload: Validated ``NotifierConfigUpdate`` schema instance.
 
     Returns:
-        Updated and committed ``NotifierConfigModel``.
+        Updated notifier config domain dict.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
+    data = {}
     if payload.config_json is not None:
-        config.config_json = json.dumps(payload.config_json)
-    db.commit()
-    db.refresh(config)
-    return config
+        data["config_json"] = json.dumps(payload.config_json)
+    return pb.update_notifier_config(config["id"], data)
 
 
-def delete(db: Session, config: NotifierConfigModel) -> None:
-    """Delete a notifier config from the database.
+def delete(config: dict) -> None:
+    """Delete a notifier config from PocketBase.
 
     Args:
-        db:     Active database session.
-        config: ``NotifierConfigModel`` to delete.
+        config: Existing notifier config domain dict (must have ``id``).
 
     Returns:
         None
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
-    base_repo.delete_notifier_config(db, config)
+    pb.delete_notifier_config(config["id"])

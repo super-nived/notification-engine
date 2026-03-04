@@ -1,9 +1,9 @@
 """
-APScheduler setup — loads rules from the DB and registers cron jobs.
+APScheduler setup — loads rules from PocketBase and registers cron jobs.
 
-The DB is the single source of truth at runtime. Config.yaml is only
-used during initial seeding. When users edit rule params via the API,
-the scheduler reloads that rule with the updated configuration.
+PocketBase is the single source of truth at runtime. When users edit rule
+params or notifier configs via the API, the scheduler reloads that rule
+with the updated configuration.
 """
 
 import json
@@ -14,8 +14,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.core.exceptions import RuleConfigError, SchedulerError
 from app.core.settings import settings
-from app.db.engine import SessionLocal
-from app.db import repositories as repo
+from app.db import pb_repositories as pb
 from app.engine.registry import DATASOURCE_REGISTRY, NOTIFIER_REGISTRY, RULE_REGISTRY
 from app.engine.runner import run_rule
 
@@ -28,7 +27,7 @@ _scheduler = BackgroundScheduler()
 
 
 def start_scheduler() -> None:
-    """Load all enabled rules from the DB and start APScheduler.
+    """Load all enabled rules from PocketBase and start APScheduler.
 
     Returns:
         None
@@ -49,7 +48,7 @@ def stop_scheduler() -> None:
 
 
 def reload_rule(rule_name: str) -> None:
-    """Remove and re-register a single rule job from the DB.
+    """Remove and re-register a single rule job from PocketBase.
 
     Called by the rules service after a rule's params or schedule
     have been updated via the API.
@@ -61,13 +60,12 @@ def reload_rule(rule_name: str) -> None:
         None
     """
     _remove_job(rule_name)
-    db = SessionLocal()
     try:
-        rule_row = repo.get_rule_by_name(db, rule_name)
-        if rule_row and rule_row.enabled:
-            _register_job(rule_row)
-    finally:
-        db.close()
+        rule = pb.get_rule_by_name(rule_name)
+        if rule and rule.get("enabled"):
+            _register_job(rule)
+    except Exception as exc:
+        logger.error("Failed to reload rule '%s': %s", rule_name, exc)
 
 
 def get_scheduler() -> BackgroundScheduler:
@@ -83,28 +81,29 @@ def get_scheduler() -> BackgroundScheduler:
 
 
 def _load_all_rules() -> None:
-    """Load all enabled rules from the DB and register their jobs.
+    """Load all enabled rules from PocketBase and register their jobs.
 
     Returns:
         None
     """
-    db = SessionLocal()
     try:
-        rules = repo.get_enabled_rules(db)
-        for rule_row in rules:
-            try:
-                _register_job(rule_row)
-            except (RuleConfigError, SchedulerError) as exc:
-                logger.error("Skipping rule '%s': %s", rule_row.name, exc)
-    finally:
-        db.close()
+        rules = pb.get_enabled_rules()
+    except Exception as exc:
+        logger.error("Failed to load rules from PocketBase: %s", exc)
+        return
+
+    for rule in rules:
+        try:
+            _register_job(rule)
+        except (RuleConfigError, SchedulerError) as exc:
+            logger.error("Skipping rule '%s': %s", rule.get("name"), exc)
 
 
-def _register_job(rule_row: object) -> None:
-    """Build a rule instance from a DB row and add it to APScheduler.
+def _register_job(rule: dict) -> None:
+    """Build a rule instance from a PocketBase domain dict and schedule it.
 
     Args:
-        rule_row: ``RuleModel`` instance from the database.
+        rule: Rule domain dict from ``pb_repositories``.
 
     Raises:
         RuleConfigError: If the rule class or datasource is unknown.
@@ -113,26 +112,26 @@ def _register_job(rule_row: object) -> None:
     Returns:
         None
     """
-    rule_instance = _build_rule_instance(rule_row)
-    trigger = _build_trigger(rule_row.name, rule_row.schedule)
+    rule_instance = _build_rule_instance(rule)
+    trigger = _build_trigger(rule["name"], rule["schedule"])
 
     _scheduler.add_job(
         run_rule,
         trigger=trigger,
-        args=[rule_instance, SessionLocal()],
-        id=rule_row.name,
+        args=[rule_instance],
+        id=rule["name"],
         replace_existing=True,
-        name=rule_row.name,
+        name=rule["name"],
     )
-    logger.info("Registered rule '%s' @ %s", rule_row.name, rule_row.schedule)
+    logger.info("Registered rule '%s' @ %s", rule["name"], rule["schedule"])
 
 
-def _build_rule_instance(rule_row: object) -> object:
-    """Instantiate a rule class from a DB row.
+def _build_rule_instance(rule: dict) -> object:
+    """Instantiate a rule class from a domain dict.
 
     Args:
-        rule_row: ``RuleModel`` instance containing class name, params,
-                  and notifier configs.
+        rule: Rule domain dict containing ``rule_class``, ``params_json``,
+              and a list of notifier config dicts under ``notifiers``.
 
     Returns:
         Instantiated rule ready to be scheduled.
@@ -140,21 +139,27 @@ def _build_rule_instance(rule_row: object) -> object:
     Raises:
         RuleConfigError: If the rule class or datasource type is unknown.
     """
-    rule_cls = RULE_REGISTRY.get(rule_row.rule_class)
+    rule_cls = RULE_REGISTRY.get(rule["rule_class"])
     if not rule_cls:
         raise RuleConfigError(
-            f"Rule class '{rule_row.rule_class}' not in registry."
+            f"Rule class '{rule['rule_class']}' not in registry."
         )
 
-    params = json.loads(rule_row.params_json or "{}")
+    params = json.loads(rule.get("params_json") or "{}")
     datasource = _build_datasource(params)
-    notifiers = _build_notifiers(rule_row.notifiers)
+
+    notifier_configs = pb.get_notifiers_for_rule(rule["id"])
+    notifiers = _build_notifiers(notifier_configs)
 
     rule_params = {
         k: v for k, v in params.items()
         if k not in ("datasource_type", "url", "admin_email", "admin_password")
     }
-    return rule_cls(datasource=datasource, notifiers=notifiers, **rule_params)
+    instance = rule_cls(datasource=datasource, notifiers=notifiers, **rule_params)
+    # Override the class-level name with the PocketBase record name so that
+    # execution logs and last_run_at updates use the correct rule identifier.
+    instance.name = rule["name"]
+    return instance
 
 
 def _build_datasource(params: dict) -> object:
@@ -195,23 +200,24 @@ def _build_datasource(params: dict) -> object:
     raise RuleConfigError(f"No builder defined for datasource '{ds_type}'.")
 
 
-def _build_notifiers(notifier_rows: list) -> list:
-    """Build notifier instances from ``NotifierConfigModel`` rows.
+def _build_notifiers(notifier_configs: list[dict]) -> list:
+    """Build notifier instances from domain config dicts.
 
     Args:
-        notifier_rows: List of ``NotifierConfigModel`` ORM instances.
+        notifier_configs: List of notifier config domain dicts.
 
     Returns:
         List of instantiated notifier objects. Unknown types are skipped.
     """
     notifiers = []
-    for row in notifier_rows:
-        cls = NOTIFIER_REGISTRY.get(row.notifier_type)
+    for config in notifier_configs:
+        n_type = config.get("notifier_type", "")
+        cls = NOTIFIER_REGISTRY.get(n_type)
         if not cls:
-            logger.warning("Unknown notifier type '%s', skipping.", row.notifier_type)
+            logger.warning("Unknown notifier type '%s', skipping.", n_type)
             continue
-        cfg = json.loads(row.config_json or "{}")
-        notifiers.append(_instantiate_notifier(cls, row.notifier_type, cfg))
+        cfg = json.loads(config.get("config_json") or "{}")
+        notifiers.append(_instantiate_notifier(cls, n_type, cfg))
     return notifiers
 
 
@@ -221,7 +227,7 @@ def _instantiate_notifier(cls: type, n_type: str, cfg: dict) -> object:
     Args:
         cls:    Notifier class from the registry.
         n_type: Notifier type key string.
-        cfg:    Config dict from ``NotifierConfigModel.config_json``.
+        cfg:    Config dict parsed from ``config_json``.
 
     Returns:
         Instantiated notifier object.

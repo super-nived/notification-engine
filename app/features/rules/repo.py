@@ -1,131 +1,150 @@
 """
 Data access functions for the rules feature.
 
-Thin wrappers that delegate to ``app.db.repositories``. No business
-logic — only query composition that is specific to the rules feature.
+Single responsibility: translate RuleCreate/RuleUpdate schemas into
+PocketBase repository calls. No business logic here.
+All PocketBaseError exceptions propagate to the service layer.
 """
 
 import json
+import logging
 
-from sqlalchemy.orm import Session
-
-from app.db import repositories as base_repo
-from app.db.models import RuleModel
+from app.db import pb_repositories as pb
 from app.features.rules.schema import RuleCreate, RuleParamsUpdate, RuleUpdate
 
-
-def get_all(db: Session) -> list[RuleModel]:
-    """Return all rules ordered by id.
-
-    Args:
-        db: Active database session.
-
-    Returns:
-        List of ``RuleModel`` instances.
-    """
-    return base_repo.get_all_rules(db)
+logger = logging.getLogger(__name__)
 
 
-def get_by_id(db: Session, rule_id: int) -> RuleModel | None:
-    """Fetch a rule by primary key.
-
-    Args:
-        db:      Active database session.
-        rule_id: Rule primary key.
+def get_all() -> list[dict]:
+    """Return all rules from PocketBase.
 
     Returns:
-        ``RuleModel`` if found, else ``None``.
+        List of rule domain dicts.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
-    return base_repo.get_rule_by_id(db, rule_id)
+    return pb.get_all_rules()
 
 
-def create(db: Session, payload: RuleCreate) -> RuleModel:
-    """Insert a new rule into the database.
+def get_by_id(rule_id: str) -> dict | None:
+    """Fetch a rule by its PocketBase record ID.
 
     Args:
-        db:      Active database session.
-        payload: Validated ``RuleCreate`` request body.
+        rule_id: PocketBase record ID string.
 
     Returns:
-        Saved ``RuleModel`` with auto-generated ``id``.
+        Rule domain dict, or ``None`` if not found.
+
+    Raises:
+        PocketBaseError: On network failure.
     """
-    rule = RuleModel(
-        name=payload.name,
-        rule_class=payload.rule_class,
-        schedule=payload.schedule,
-        description=payload.description,
-        enabled=True,
-        params_json=json.dumps(payload.params),
-    )
-    return base_repo.create_rule(db, rule)
+    return pb.get_rule_by_id(rule_id)
 
 
-def update(db: Session, rule: RuleModel, payload: RuleUpdate) -> RuleModel:
-    """Apply a partial update to a rule's schedule or description.
+def get_by_name(name: str) -> dict | None:
+    """Fetch a rule by its unique name.
 
     Args:
-        db:      Active database session.
-        rule:    Existing ``RuleModel`` to update.
-        payload: ``RuleUpdate`` with optional fields to overwrite.
+        name: Unique rule name string.
 
     Returns:
-        Updated and committed ``RuleModel``.
+        Rule domain dict, or ``None`` if not found.
+
+    Raises:
+        PocketBaseError: On network failure.
     """
+    return pb.get_rule_by_name(name)
+
+
+def create(payload: RuleCreate) -> dict:
+    """Create a new rule in PocketBase.
+
+    Args:
+        payload: Validated ``RuleCreate`` schema instance.
+
+    Returns:
+        Created rule domain dict.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
+    """
+    data = {
+        "name": payload.name,
+        "rule_class": payload.rule_class,
+        "schedule": payload.schedule,
+        "description": payload.description or "",
+        "enabled": True,
+        "params_json": json.dumps(payload.params or {}),
+    }
+    return pb.create_rule(data)
+
+
+def update(rule: dict, payload: RuleUpdate) -> dict:
+    """Update schedule and/or description on an existing rule.
+
+    Args:
+        rule:    Existing rule domain dict (must have ``id``).
+        payload: Validated ``RuleUpdate`` schema instance.
+
+    Returns:
+        Updated rule domain dict.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
+    """
+    data = {}
     if payload.schedule is not None:
-        rule.schedule = payload.schedule
+        data["schedule"] = payload.schedule
     if payload.description is not None:
-        rule.description = payload.description
-    db.commit()
-    db.refresh(rule)
-    return rule
+        data["description"] = payload.description
+    return pb.update_rule(rule["id"], data)
 
 
-def update_params(
-    db: Session, rule: RuleModel, payload: RuleParamsUpdate
-) -> RuleModel:
-    """Merge new parameters into a rule's existing params JSON.
+def update_params(rule: dict, payload: RuleParamsUpdate) -> dict:
+    """Merge new params into the rule's ``params_json`` field.
 
     Args:
-        db:      Active database session.
-        rule:    Existing ``RuleModel`` to update.
-        payload: ``RuleParamsUpdate`` with new parameter values.
+        rule:    Existing rule domain dict (must have ``id``, ``params_json``).
+        payload: Validated ``RuleParamsUpdate`` schema instance.
 
     Returns:
-        Updated and committed ``RuleModel``.
+        Updated rule domain dict.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
-    existing = json.loads(rule.params_json or "{}")
-    existing.update(payload.params)
-    rule.params_json = json.dumps(existing)
-    db.commit()
-    db.refresh(rule)
-    return rule
+    existing = json.loads(rule.get("params_json") or "{}")
+    existing.update(payload.params or {})
+    return pb.update_rule(rule["id"], {"params_json": json.dumps(existing)})
 
 
-def toggle(db: Session, rule: RuleModel, enabled: bool) -> RuleModel:
+def toggle(rule: dict, enabled: bool) -> dict:
     """Enable or disable a rule.
 
     Args:
-        db:      Active database session.
-        rule:    ``RuleModel`` to toggle.
-        enabled: New enabled state.
+        rule:    Existing rule domain dict (must have ``id``).
+        enabled: ``True`` to enable, ``False`` to disable.
 
     Returns:
-        Updated and committed ``RuleModel``.
+        Updated rule domain dict.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
-    rule.enabled = enabled
-    db.commit()
-    db.refresh(rule)
-    return rule
+    return pb.update_rule(rule["id"], {"enabled": enabled})
 
 
-def delete(db: Session, rule: RuleModel) -> None:
-    """Delete a rule from the database.
+def delete(rule: dict) -> None:
+    """Delete a rule and its notifier configs from PocketBase.
 
     Args:
-        db:   Active database session.
-        rule: ``RuleModel`` to delete.
+        rule: Existing rule domain dict (must have ``id``).
 
     Returns:
         None
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
     """
-    base_repo.delete_rule(db, rule)
+    pb.delete_rule(rule["id"])

@@ -1,14 +1,12 @@
 """
 HTTP endpoints for notifier config management.
 
-All routes are thin — they validate input, call the service layer,
-and return a standard response. No business logic here.
+Single responsibility: validate HTTP input, call the service layer,
+return a standard response. No business logic here.
 """
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter
 
-from app.db.engine import get_db
 from app.features.notifier_config import service
 from app.features.notifier_config.schema import (
     NotifierConfigCreate,
@@ -21,24 +19,22 @@ router = APIRouter(prefix="/notifier-configs", tags=["Notifier Configs"])
 
 
 @router.get("/rule/{rule_id}", response_model=dict)
-def list_configs(rule_id: int, db: Session = Depends(get_db)):
+def list_configs(rule_id: str):
     """List all notifier configs attached to a rule.
 
     Args:
-        rule_id: Primary key of the parent rule.
+        rule_id: PocketBase record ID of the parent rule.
 
     Returns:
         Standard success response containing a list of config objects.
     """
-    configs = service.list_configs(db, rule_id)
+    configs = service.list_configs(rule_id)
     data = [NotifierConfigOut.model_validate(c) for c in configs]
     return success(data=data, message="Configs fetched")
 
 
 @router.post("/", response_model=dict, status_code=201)
-def create_config(
-    payload: NotifierConfigCreate, db: Session = Depends(get_db)
-):
+def create_config(payload: NotifierConfigCreate):
     """Attach a new notifier to a rule.
 
     Args:
@@ -47,7 +43,7 @@ def create_config(
     Returns:
         Standard success response with the created config.
     """
-    config = service.create_config(db, payload)
+    config = service.create_config(payload)
     return success(
         data=NotifierConfigOut.model_validate(config),
         message="Notifier config created",
@@ -55,35 +51,31 @@ def create_config(
 
 
 @router.get("/{config_id}", response_model=dict)
-def get_config(config_id: int, db: Session = Depends(get_db)):
+def get_config(config_id: str):
     """Fetch a single notifier config by id.
 
     Args:
-        config_id: Primary key of the notifier config.
+        config_id: PocketBase record ID string.
 
     Returns:
         Standard success response with the config object.
     """
-    config = service.get_config(db, config_id)
+    config = service.get_config(config_id)
     return success(data=NotifierConfigOut.model_validate(config))
 
 
 @router.patch("/{config_id}", response_model=dict)
-def update_config(
-    config_id: int,
-    payload: NotifierConfigUpdate,
-    db: Session = Depends(get_db),
-):
+def update_config(config_id: str, payload: NotifierConfigUpdate):
     """Update a notifier config's settings.
 
     Args:
-        config_id: Primary key of the config to update.
+        config_id: PocketBase record ID string.
         payload:   Fields to overwrite.
 
     Returns:
         Standard success response with the updated config.
     """
-    config = service.update_config(db, config_id, payload)
+    config = service.update_config(config_id, payload)
     return success(
         data=NotifierConfigOut.model_validate(config),
         message="Config updated",
@@ -91,13 +83,13 @@ def update_config(
 
 
 @router.delete("/{config_id}", status_code=204)
-def delete_config(config_id: int, db: Session = Depends(get_db)):
+def delete_config(config_id: str):
     """Delete a notifier config.
 
     Args:
-        config_id: Primary key of the config to delete.
+        config_id: PocketBase record ID string.
 
     Returns:
         No content (204).
     """
-    service.delete_config(db, config_id)
+    service.delete_config(config_id)

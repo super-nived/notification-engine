@@ -19,6 +19,7 @@ from app.core.exceptions import (
     RuleNotFoundError,
     SchedulerError,
 )
+from app.db.pb_client import PocketBaseError
 
 logger = logging.getLogger(__name__)
 
@@ -91,3 +92,10 @@ def register_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         logger.error("SchedulerError: %s", exc)
         return _error_response(500, "SchedulerError", str(exc))
+
+    @app.exception_handler(PocketBaseError)
+    async def pocketbase_error(
+        request: Request, exc: PocketBaseError
+    ) -> JSONResponse:
+        logger.error("PocketBaseError: %s", exc)
+        return _error_response(502, "PocketBaseError", str(exc))
