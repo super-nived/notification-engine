@@ -1,0 +1,25 @@
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# Database
+sqlalchemy==2.0.36
+
+# Scheduler
+apscheduler==3.10.4
+
+# Settings / validation
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# HTTP client (PocketBase, webhooks)
+requests==2.32.3
+
+# Optional data sources
+pymongo==4.10.1          # MongoDB
+pyodbc==5.2.0            # SQL Server
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+httpx==0.27.2            # TestClient transport

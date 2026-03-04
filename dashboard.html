@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notification Engine Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3352;
+      --accent: #4f7cff;
+      --accent2: #7c5cfc;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 10px;
+      --font: 'Inter', 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .sidebar-logo {
+      padding: 0 20px 24px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: .3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar-logo span { font-size: 20px; }
+
+    .nav-section {
+      padding: 0 12px;
+      margin-bottom: 6px;
+    }
+
+    .nav-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      padding: 4px 8px 8px;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 12px;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 13.5px;
+      font-family: var(--font);
+      cursor: pointer;
+      border-radius: 8px;
+      text-align: left;
+      transition: all .15s;
+    }
+
+    .nav-btn:hover { background: var(--surface2); color: var(--text); }
+    .nav-btn.active { background: var(--accent); color: #fff; }
+    .nav-btn .icon { font-size: 16px; }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .base-url-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 11px;
+      padding: 6px 8px;
+      font-family: monospace;
+    }
+
+    .base-url-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      padding: 28px 32px;
+      overflow-y: auto;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 14px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: var(--font);
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: opacity .15s, transform .1s;
+    }
+
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { opacity: .87; }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-success:hover:not(:disabled) { opacity: .87; }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover:not(:disabled) { opacity: .87; }
+    .btn-ghost {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-ghost:hover:not(:disabled) { background: var(--border); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* ── Form ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .form-grid.cols-1 { grid-template-columns: 1fr; }
+    .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field.full { grid-column: 1 / -1; }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: var(--font);
+      padding: 8px 12px;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    .field select option { background: var(--surface2); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+    .badge-red   { background: rgba(239,68,68,.15);  color: var(--red);   }
+    .badge-yellow{ background: rgba(245,158,11,.15); color: var(--yellow);}
+    .badge-blue  { background: rgba(79,124,255,.15); color: var(--accent);}
+    .badge-muted { background: rgba(100,116,139,.15);color: var(--muted); }
+
+    .mono { font-family: monospace; font-size: 12px; }
+
+    /* ── Response box ── */
+    .response-box {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #a3e635;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 320px;
+      overflow-y: auto;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .response-box.visible { display: block; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px 18px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: all .25s;
+      pointer-events: none;
+    }
+
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.ok  { border-color: var(--green); }
+    #toast.err { border-color: var(--red); }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
+    }
+
+    /* ── Stat cards ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+
+    .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .stat-value { font-size: 26px; font-weight: 700; }
+
+    /* ── Toggle switch ── */
+    .toggle {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .toggle input { display: none; }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+    }
+
+    .toggle input:checked + .toggle-slider { background: var(--green); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      padding: 48px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+    /* ── Section tabs ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-family: var(--font);
+      transition: color .15s;
+    }
+
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .form-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ── Params Builder ── */
+    .params-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .params-rule-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+      padding: 8px 12px;
+      background: rgba(79,124,255,.07);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+    }
+
+    .params-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .params-field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .params-field input,
+    .params-field textarea {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: var(--font);
+      padding: 8px 12px;
+      outline: none;
+      transition: border-color .15s;
+      width: 100%;
+    }
+
+    .params-field input:focus,
+    .params-field textarea:focus { border-color: var(--accent); }
+
+    .params-hint {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .params-preview-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .params-preview {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--green);
+      background: #0d1117;
+      padding: 4px 10px;
+      border-radius: 5px;
+      word-break: break-all;
+      flex: 1;
+    }
+
+    /* ── Cron Builder ── */
+    .cron-builder {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .cron-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 16px;
+    }
+
+    .cron-preset {
+      padding: 5px 13px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .cron-preset:hover { border-color: var(--accent); color: var(--text); }
+    .cron-preset.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .cron-custom-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .cron-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .cron-field label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .cron-field input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: monospace;
+      padding: 6px 8px;
+      text-align: center;
+      outline: none;
+      width: 100%;
+      transition: border-color .15s;
+    }
+
+    .cron-field input:focus { border-color: var(--accent); }
+
+    .cron-preview {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 9px 14px;
+    }
+
+    .cron-preview-human {
+      font-size: 13px;
+      color: var(--green);
+    }
+
+    .cron-preview-expr {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════ SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span>⚡</span> Rule Engine
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Overview</div>
+    <button class="nav-btn active" onclick="navigate('overview')">
+      <span class="icon">🏠</span> Dashboard
+    </button>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Rules</div>
+    <button class="nav-btn" onclick="navigate('rules')">
+      <span class="icon">📋</span> All Rules
+    </button>
+    <button class="nav-btn" onclick="navigate('create-rule')">
+      <span class="icon">➕</span> Create Rule
+    </button>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Notifiers</div>
+    <button class="nav-btn" onclick="navigate('notifiers')">
+      <span class="icon">🔔</span> Notifier Configs
+    </button>
+    <button class="nav-btn" onclick="navigate('add-notifier')">
+      <span class="icon">➕</span> Add Notifier
+    </button>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Logs</div>
+    <button class="nav-btn" onclick="navigate('logs')">
+      <span class="icon">📜</span> All Logs
+    </button>
+    <button class="nav-btn" onclick="navigate('rule-logs')">
+      <span class="icon">🔍</span> Logs by Rule
+    </button>
+  </div>
+
+  <div class="sidebar-bottom">
+    <span class="base-url-label">API Base URL</span>
+    <input class="base-url-input" id="baseUrl" value="http://localhost:8000/api/v1" />
+  </div>
+</aside>
+
+<!-- ════════════════════════════════════════════════════ MAIN -->
+<main class="main">
+
+  <!-- ── OVERVIEW ── -->
+  <div class="page active" id="page-overview">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle">Notification Rule Engine overview</div>
+      </div>
+      <button class="btn btn-ghost" onclick="loadOverview()">↺ Refresh</button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Rules</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Enabled</div>
+        <div class="stat-value" style="color:var(--green)" id="stat-enabled">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Disabled</div>
+        <div class="stat-value" style="color:var(--muted)" id="stat-disabled">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Logs</div>
+        <div class="stat-value" style="color:var(--accent)" id="stat-logs">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recent Rules</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Name</th><th>Class</th><th>Schedule</th><th>Status</th><th>Last Run</th>
+            </tr>
+          </thead>
+          <tbody id="overview-rules-body">
+            <tr><td colspan="6"><div class="empty"><div class="empty-icon">⏳</div>Loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recent Execution Logs</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Rule Name</th><th>Started At</th><th>Status</th><th>Events</th><th>Error</th></tr>
+          </thead>
+          <tbody id="overview-logs-body">
+            <tr><td colspan="6"><div class="empty"><div class="empty-icon">⏳</div>Loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ALL RULES ── -->
+  <div class="page" id="page-rules">
+    <div class="page-header">
+      <div>
+        <div class="page-title">All Rules</div>
+        <div class="page-subtitle">Manage and monitor scheduled rules</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="loadRules()">↺ Refresh</button>
+        <button class="btn btn-primary" onclick="navigate('create-rule')">+ Create Rule</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Name</th><th>Class</th><th>Schedule</th>
+              <th>Enabled</th><th>Last Run</th><th>Last Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rules-body">
+            <tr><td colspan="8"><div class="empty"><div class="empty-icon">⏳</div>Loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Rule detail panel -->
+    <div class="card" id="rule-detail-panel" style="display:none">
+      <div class="card-title">Rule Detail</div>
+      <div id="rule-detail-content"></div>
+
+      <hr class="divider" />
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchDetailTab('params')">Edit Params</button>
+        <button class="tab" onclick="switchDetailTab('schedule')">Edit Schedule</button>
+      </div>
+
+      <div class="tab-panel active" id="dtab-params">
+        <div id="detail-params-builder"></div>
+        <input type="hidden" id="detail-params" />
+        <div style="margin-top:14px;display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="submitUpdateParams()">Save Params</button>
+        </div>
+        <div class="response-box" id="params-response"></div>
+      </div>
+
+      <div class="tab-panel" id="dtab-schedule">
+        <div class="form-grid cols-1">
+          <div class="field">
+            <label>Description</label>
+            <input id="detail-description" placeholder="What this rule monitors" />
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          <label style="font-size:12px;color:var(--muted);font-weight:500;display:block;margin-bottom:8px">Schedule</label>
+          <div id="edit-cron-builder"></div>
+          <input type="hidden" id="detail-schedule" />
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="submitUpdateRule()">Save</button>
+        </div>
+        <div class="response-box" id="schedule-response"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CREATE RULE ── -->
+  <div class="page" id="page-create-rule">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Create Rule</div>
+        <div class="page-subtitle">Register a new monitoring rule</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="form-grid">
+        <div class="field">
+          <label>Name (unique)</label>
+          <input id="cr-name" placeholder="aswn_downtime" />
+        </div>
+        <div class="field">
+          <label>Rule Class</label>
+          <select id="cr-class" onchange="buildParamsForm('cr-params-builder','cr-params',this.value)">
+            <option value="DowntimeRule">DowntimeRule</option>
+            <option value="OEERule">OEERule</option>
+            <option value="ExampleRule">ExampleRule</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <input id="cr-description" placeholder="Alert when new downtime records appear" />
+        </div>
+        <div class="field full">
+          <label>Schedule</label>
+          <div id="create-cron-builder"></div>
+          <input type="hidden" id="cr-schedule" />
+        </div>
+        <div class="field full">
+          <label>Params</label>
+          <div id="cr-params-builder"></div>
+          <input type="hidden" id="cr-params" />
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn btn-success" onclick="submitCreateRule()">✓ Create Rule</button>
+        <button class="btn btn-ghost" onclick="navigate('rules')">Cancel</button>
+      </div>
+      <div class="response-box" id="create-rule-response"></div>
+    </div>
+  </div>
+
+  <!-- ── NOTIFIER CONFIGS ── -->
+  <div class="page" id="page-notifiers">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Notifier Configs</div>
+        <div class="page-subtitle">View notifiers attached to a rule</div>
+      </div>
+      <button class="btn btn-primary" onclick="navigate('add-notifier')">+ Add Notifier</button>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:flex-end">
+        <div class="field" style="flex:1">
+          <label>Rule ID</label>
+          <input id="nc-rule-id" type="number" placeholder="1" />
+        </div>
+        <button class="btn btn-ghost" onclick="loadNotifiersForRule()">Fetch</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Rule ID</th><th>Type</th><th>Config JSON</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="notifiers-body">
+            <tr><td colspan="6"><div class="empty"><div class="empty-icon">🔔</div>Enter a Rule ID above</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Edit notifier config panel -->
+    <div class="card" id="edit-notifier-panel" style="display:none">
+      <div class="card-title">Edit Notifier Config <span id="edit-nc-id"></span></div>
+      <div class="form-grid cols-1">
+        <div class="field">
+          <label>Config JSON</label>
+          <textarea id="edit-nc-config" rows="5"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="submitUpdateNotifier()">Save</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('edit-notifier-panel').style.display='none'">Cancel</button>
+      </div>
+      <div class="response-box" id="edit-notifier-response"></div>
+    </div>
+  </div>
+
+  <!-- ── ADD NOTIFIER ── -->
+  <div class="page" id="page-add-notifier">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Add Notifier</div>
+        <div class="page-subtitle">Attach a notifier to a rule</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="form-grid">
+        <div class="field">
+          <label>Rule ID</label>
+          <input id="an-rule-id" type="number" placeholder="1" />
+        </div>
+        <div class="field">
+          <label>Notifier Type</label>
+          <select id="an-type" onchange="updateNotifierTemplate()">
+            <option value="email">email</option>
+            <option value="log">log</option>
+            <option value="webhook">webhook</option>
+            <option value="desktop">desktop</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Config JSON</label>
+          <textarea id="an-config" rows="5"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn btn-success" onclick="submitAddNotifier()">✓ Add Notifier</button>
+        <button class="btn btn-ghost" onclick="navigate('notifiers')">Cancel</button>
+      </div>
+      <div class="response-box" id="add-notifier-response"></div>
+    </div>
+  </div>
+
+  <!-- ── ALL LOGS ── -->
+  <div class="page" id="page-logs">
+    <div class="page-header">
+      <div>
+        <div class="page-title">All Execution Logs</div>
+        <div class="page-subtitle">Full history of rule runs</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div class="field">
+          <label style="font-size:11px;color:var(--muted)">Page</label>
+          <input id="logs-page" type="number" value="1" min="1" style="width:60px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-size:12px;" />
+        </div>
+        <button class="btn btn-ghost" onclick="loadAllLogs()">↺ Refresh</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Rule Name</th><th>Started At</th><th>Status</th><th>Events</th><th>Error</th></tr>
+          </thead>
+          <tbody id="logs-body">
+            <tr><td colspan="6"><div class="empty"><div class="empty-icon">⏳</div>Loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="logs-pagination" style="margin-top:12px;font-size:12px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <!-- ── LOGS BY RULE ── -->
+  <div class="page" id="page-rule-logs">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Logs by Rule</div>
+        <div class="page-subtitle">Filter execution history for one rule</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:flex-end">
+        <div class="field" style="flex:1">
+          <label>Rule Name</label>
+          <input id="rl-rule-id" type="text" placeholder="aswn_downtime" />
+        </div>
+        <button class="btn btn-ghost" onclick="loadRuleLogs()">Fetch</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Rule Name</th><th>Started At</th><th>Status</th><th>Events</th><th>Error</th></tr>
+          </thead>
+          <tbody id="rule-logs-body">
+            <tr><td colspan="6"><div class="empty"><div class="empty-icon">🔍</div>Enter a Rule ID above</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── TOAST ── -->
+<div id="toast"></div>
+
+<script>
+  // ════════════════════════════════════════ STATE
+  let BASE = () => document.getElementById('baseUrl').value.replace(/\/$/, '');
+  let currentRuleId = null;
+
+  // ════════════════════════════════════════ NAVIGATION
+  function navigate(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + page + "'"))
+        b.classList.add('active');
+    });
+    if (page === 'overview') loadOverview();
+    if (page === 'rules') loadRules();
+    if (page === 'logs') loadAllLogs();
+    if (page === 'add-notifier') updateNotifierTemplate();
+  }
+
+  // ════════════════════════════════════════ API HELPER
+  async function api(method, path, body) {
+    const opts = {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+    };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    const res = await fetch(BASE() + path, opts);
+    let data;
+    try { data = await res.json(); } catch { data = null; }
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  function showResponse(boxId, data) {
+    const box = document.getElementById(boxId);
+    box.textContent = JSON.stringify(data, null, 2);
+    box.classList.add('visible');
+  }
+
+  // ════════════════════════════════════════ TOAST
+  let toastTimer;
+  function toast(msg, type = 'ok') {
+    const t = document.getElementById('toast');
+    t.textContent = (type === 'ok' ? '✓ ' : '✗ ') + msg;
+    t.className = 'show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.className = '', 3000);
+  }
+
+  // ════════════════════════════════════════ BADGE HELPERS
+  function statusBadge(s) {
+    if (!s) return '<span class="badge badge-muted">—</span>';
+    const map = { ok: 'green', error: 'red', no_events: 'yellow' };
+    return `<span class="badge badge-${map[s] || 'blue'}">${s}</span>`;
+  }
+
+  function enabledBadge(e) {
+    return e
+      ? '<span class="badge badge-green">Enabled</span>'
+      : '<span class="badge badge-muted">Disabled</span>';
+  }
+
+  function fmtDate(d) {
+    if (!d) return '<span style="color:var(--muted)">—</span>';
+    return new Date(d).toLocaleString();
+  }
+
+  // ════════════════════════════════════════ OVERVIEW
+  async function loadOverview() {
+    const [rulesRes, logsRes] = await Promise.all([
+      api('GET', '/rules/'),
+      api('GET', '/logs/?size=10'),
+    ]);
+
+    if (rulesRes.ok) {
+      const rules = rulesRes.data.data || [];
+      document.getElementById('stat-total').textContent = rules.length;
+      document.getElementById('stat-enabled').textContent = rules.filter(r => r.enabled).length;
+      document.getElementById('stat-disabled').textContent = rules.filter(r => !r.enabled).length;
+
+      const tbody = document.getElementById('overview-rules-body');
+      if (!rules.length) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div>No rules yet</div></td></tr>`;
+      } else {
+        tbody.innerHTML = rules.slice(0, 8).map(r => `
+          <tr>
+            <td>${r.id}</td>
+            <td><strong>${r.name}</strong></td>
+            <td><span class="mono">${r.rule_class}</span></td>
+            <td><span class="mono">${r.schedule}</span></td>
+            <td>${enabledBadge(r.enabled)}</td>
+            <td>${fmtDate(r.last_run_at)}</td>
+          </tr>`).join('');
+      }
+    }
+
+    if (logsRes.ok) {
+      const logs = logsRes.data.data?.items || [];
+      document.getElementById('stat-logs').textContent = logsRes.data.data?.total || 0;
+      const tbody = document.getElementById('overview-logs-body');
+      if (!logs.length) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">📜</div>No logs yet</div></td></tr>`;
+      } else {
+        tbody.innerHTML = logs.map(l => `
+          <tr>
+            <td>${l.id}</td>
+            <td><span class="mono">${l.rule_name}</span></td>
+            <td>${fmtDate(l.started_at)}</td>
+            <td>${statusBadge(l.status)}</td>
+            <td>${l.events_count}</td>
+            <td style="color:var(--red);font-size:12px">${l.error || ''}</td>
+          </tr>`).join('');
+      }
+    }
+  }
+
+  // ════════════════════════════════════════ RULES LIST
+  async function loadRules() {
+    const res = await api('GET', '/rules/');
+    const tbody = document.getElementById('rules-body');
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">❌</div>Failed to load rules</div></td></tr>`;
+      return;
+    }
+    const rules = res.data.data || [];
+    if (!rules.length) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">📋</div>No rules. <a href="#" onclick="navigate('create-rule')" style="color:var(--accent)">Create one</a></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rules.map(r => `
+      <tr>
+        <td>${r.id}</td>
+        <td><strong>${r.name}</strong></td>
+        <td><span class="mono">${r.rule_class}</span></td>
+        <td><span class="mono">${r.schedule}</span></td>
+        <td>
+          <label class="toggle">
+            <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRule(${r.id}, this.checked)" />
+            <span class="toggle-slider"></span>
+          </label>
+        </td>
+        <td>${fmtDate(r.last_run_at)}</td>
+        <td>${statusBadge(r.last_status)}</td>
+        <td>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="openRuleDetail(${r.id})">Edit</button>
+            <button class="btn btn-primary btn-sm" onclick="runNow(${r.id})">▶ Run</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteRule(${r.id})">🗑</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  async function toggleRule(id, enabled) {
+    const res = await api('PATCH', `/rules/${id}/toggle`, { enabled });
+    if (res.ok) toast(`Rule ${enabled ? 'enabled' : 'disabled'}`);
+    else { toast('Toggle failed', 'err'); loadRules(); }
+  }
+
+  async function runNow(id) {
+    const res = await api('POST', `/rules/${id}/run`);
+    if (res.ok) toast('Rule triggered');
+    else toast('Run failed', 'err');
+  }
+
+  async function deleteRule(id) {
+    if (!confirm(`Delete rule #${id}? This cannot be undone.`)) return;
+    const res = await api('DELETE', `/rules/${id}`);
+    if (res.status === 204 || res.ok) { toast('Rule deleted'); loadRules(); }
+    else toast('Delete failed', 'err');
+  }
+
+  async function openRuleDetail(id) {
+    currentRuleId = id;
+    const res = await api('GET', `/rules/${id}`);
+    if (!res.ok) { toast('Failed to load rule', 'err'); return; }
+    const r = res.data.data;
+
+    let params = {};
+    try { params = JSON.parse(r.params_json || '{}'); } catch {}
+
+    document.getElementById('rule-detail-content').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:13px">
+        <div><span style="color:var(--muted)">ID</span><br><strong>${r.id}</strong></div>
+        <div><span style="color:var(--muted)">Name</span><br><strong>${r.name}</strong></div>
+        <div><span style="color:var(--muted)">Class</span><br><span class="mono">${r.rule_class}</span></div>
+        <div><span style="color:var(--muted)">Schedule</span><br><span class="mono">${r.schedule}</span></div>
+        <div><span style="color:var(--muted)">Status</span><br>${enabledBadge(r.enabled)}</div>
+        <div><span style="color:var(--muted)">Last Run</span><br>${fmtDate(r.last_run_at)}</div>
+      </div>`;
+
+    document.getElementById('detail-params').value = JSON.stringify(params, null, 2);
+    document.getElementById('detail-schedule').value = r.schedule;
+    document.getElementById('detail-description').value = r.description || '';
+    _detailRuleClass = r.rule_class;
+    buildParamsForm('detail-params-builder', 'detail-params', r.rule_class, params);
+    buildCron('edit-cron-builder', 'detail-schedule', r.schedule);
+
+    document.getElementById('rule-detail-panel').style.display = 'block';
+    document.getElementById('rule-detail-panel').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function submitUpdateParams() {
+    paramsBuilderSync('detail-params-builder', 'detail-params');
+    let params;
+    try { params = JSON.parse(document.getElementById('detail-params').value || '{}'); }
+    catch { toast('Invalid JSON', 'err'); return; }
+    const res = await api('PATCH', `/rules/${currentRuleId}/params`, { params });
+    showResponse('params-response', res.data);
+    if (res.ok) toast('Params updated');
+    else toast('Update failed', 'err');
+  }
+
+  async function submitUpdateRule() {
+    const payload = {
+      schedule: document.getElementById('detail-schedule').value || null,
+      description: document.getElementById('detail-description').value || null,
+    };
+    const res = await api('PATCH', `/rules/${currentRuleId}`, payload);
+    showResponse('schedule-response', res.data);
+    if (res.ok) { toast('Rule updated'); loadRules(); }
+    else toast('Update failed', 'err');
+  }
+
+  function switchDetailTab(name) {
+    document.querySelectorAll('#rule-detail-panel .tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#rule-detail-panel .tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('dtab-' + name).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // ════════════════════════════════════════ CREATE RULE
+  async function submitCreateRule() {
+    paramsBuilderSync('cr-params-builder', 'cr-params');
+    const name = document.getElementById('cr-name').value.trim();
+    const rule_class = document.getElementById('cr-class').value;
+    const schedule = document.getElementById('cr-schedule').value.trim();
+    const description = document.getElementById('cr-description').value.trim();
+    const paramsRaw = document.getElementById('cr-params').value.trim();
+
+    if (!name || !schedule) { toast('Name and Schedule are required', 'err'); return; }
+
+    let params = {};
+    if (paramsRaw) {
+      try { params = JSON.parse(paramsRaw); }
+      catch { toast('Invalid params JSON', 'err'); return; }
+    }
+
+    const res = await api('POST', '/rules/', { name, rule_class, schedule, description, params });
+    showResponse('create-rule-response', res.data);
+    if (res.ok) {
+      toast('Rule created!');
+      ['cr-name', 'cr-description', 'cr-params'].forEach(id =>
+        document.getElementById(id).value = '');
+      buildCron('create-cron-builder', 'cr-schedule');
+      buildParamsForm('cr-params-builder', 'cr-params', document.getElementById('cr-class').value);
+    } else toast('Create failed', 'err');
+  }
+
+  // ════════════════════════════════════════ NOTIFIER CONFIGS
+  let editingNotifierId = null;
+
+  async function loadNotifiersForRule() {
+    const id = document.getElementById('nc-rule-id').value;
+    if (!id) { toast('Enter a Rule ID', 'err'); return; }
+    const res = await api('GET', `/notifier-configs/rule/${id}`);
+    const tbody = document.getElementById('notifiers-body');
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">❌</div>${res.data?.detail || 'Error'}</div></td></tr>`;
+      return;
+    }
+    const configs = res.data.data || [];
+    if (!configs.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">🔔</div>No notifiers for this rule</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = configs.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td>${c.rule_id}</td>
+        <td><span class="badge badge-blue">${c.notifier_type}</span></td>
+        <td><span class="mono" style="font-size:11px">${c.config_json}</span></td>
+        <td>
+          <div style="display:flex;gap:5px">
+            <button class="btn btn-ghost btn-sm" onclick="openEditNotifier(${c.id}, \`${c.config_json.replace(/`/g, '\\`')}\`)">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteNotifier(${c.id})">🗑</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function openEditNotifier(id, configJson) {
+    editingNotifierId = id;
+    document.getElementById('edit-nc-id').textContent = `#${id}`;
+    try {
+      document.getElementById('edit-nc-config').value = JSON.stringify(JSON.parse(configJson), null, 2);
+    } catch {
+      document.getElementById('edit-nc-config').value = configJson;
+    }
+    document.getElementById('edit-notifier-panel').style.display = 'block';
+    document.getElementById('edit-notifier-panel').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function submitUpdateNotifier() {
+    let config_json;
+    try { config_json = JSON.parse(document.getElementById('edit-nc-config').value); }
+    catch { toast('Invalid JSON', 'err'); return; }
+    const res = await api('PATCH', `/notifier-configs/${editingNotifierId}`, { config_json });
+    showResponse('edit-notifier-response', res.data);
+    if (res.ok) toast('Notifier config updated');
+    else toast('Update failed', 'err');
+  }
+
+  async function deleteNotifier(id) {
+    if (!confirm(`Delete notifier config #${id}?`)) return;
+    const res = await api('DELETE', `/notifier-configs/${id}`);
+    if (res.status === 204 || res.ok) {
+      toast('Notifier deleted');
+      loadNotifiersForRule();
+      document.getElementById('edit-notifier-panel').style.display = 'none';
+    } else toast('Delete failed', 'err');
+  }
+
+  // ════════════════════════════════════════ ADD NOTIFIER
+  const NOTIFIER_TEMPLATES = {
+    email:   '{\n  "to": "alerts@example.com"\n}',
+    log:     '{\n  "file": "./logs/alerts.log"\n}',
+    webhook: '{\n  "url": "https://hooks.example.com/notify"\n}',
+    desktop: '{}',
+  };
+
+  function updateNotifierTemplate() {
+    const type = document.getElementById('an-type').value;
+    document.getElementById('an-config').value = NOTIFIER_TEMPLATES[type] || '{}';
+  }
+
+  async function submitAddNotifier() {
+    const rule_id = parseInt(document.getElementById('an-rule-id').value);
+    const notifier_type = document.getElementById('an-type').value;
+    const configRaw = document.getElementById('an-config').value.trim();
+
+    if (!rule_id) { toast('Rule ID is required', 'err'); return; }
+
+    let config_json = {};
+    if (configRaw) {
+      try { config_json = JSON.parse(configRaw); }
+      catch { toast('Invalid config JSON', 'err'); return; }
+    }
+
+    const res = await api('POST', '/notifier-configs/', { rule_id, notifier_type, config_json });
+    showResponse('add-notifier-response', res.data);
+    if (res.ok) toast('Notifier added!');
+    else toast('Failed to add notifier', 'err');
+  }
+
+  // ════════════════════════════════════════ LOGS
+  function renderLogRows(logs, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!logs.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">📜</div>No logs found</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = logs.map(l => `
+      <tr>
+        <td>${l.id}</td>
+        <td><span class="mono">${l.rule_name}</span></td>
+        <td>${fmtDate(l.started_at)}</td>
+        <td>${statusBadge(l.status)}</td>
+        <td>${l.events_count}</td>
+        <td style="color:var(--red);font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis">${l.error || ''}</td>
+      </tr>`).join('');
+  }
+
+  async function loadAllLogs() {
+    const page = document.getElementById('logs-page').value || 1;
+    const res = await api('GET', `/logs/?page=${page}&size=50`);
+    const tbody = document.getElementById('logs-body');
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">❌</div>Failed to load logs</div></td></tr>`;
+      return;
+    }
+    const { items, total, size } = res.data.data || { items: [], total: 0, size: 50 };
+    renderLogRows(items, 'logs-body');
+    document.getElementById('logs-pagination').textContent =
+      `Page ${page} · ${items.length} of ${total} total`;
+  }
+
+  async function loadRuleLogs() {
+    const id = document.getElementById('rl-rule-id').value.trim();
+    if (!id) { toast('Enter a Rule Name', 'err'); return; }
+    const res = await api('GET', `/logs/rule/${id}?size=100`);
+    if (!res.ok) {
+      document.getElementById('rule-logs-body').innerHTML =
+        `<tr><td colspan="6"><div class="empty"><div class="empty-icon">❌</div>${res.data?.detail || 'Error'}</div></td></tr>`;
+      return;
+    }
+    const { items } = res.data.data || { items: [] };
+    renderLogRows(items, 'rule-logs-body');
+  }
+
+  // ════════════════════════════════════════ PARAMS BUILDER
+
+  const RULE_PARAMS_SCHEMA = {
+    DowntimeRule: {
+      description: 'Monitors a PocketBase collection and fires an alert for every new record added since the last run.',
+      fields: [
+        {
+          key: 'collection',
+          label: 'PocketBase Collection',
+          type: 'text',
+          default: 'ASWNDUBAI_shift_downtime',
+          hint: 'The exact collection name in PocketBase to monitor for new downtime entries.',
+        },
+        {
+          key: 'state_file',
+          label: 'State File Path',
+          type: 'text',
+          default: './state/downtime_last_seen.txt',
+          hint: 'File that stores the last-seen timestamp. Used to avoid duplicate alerts between runs.',
+        },
+      ],
+    },
+    OEERule: {
+      description: 'Monitors a PocketBase OEE collection and alerts when any machine OEE drops below the threshold.',
+      fields: [
+        {
+          key: 'collection',
+          label: 'PocketBase Collection',
+          type: 'text',
+          default: 'oee_realtime_status',
+          hint: 'The PocketBase collection that contains OEE records.',
+        },
+        {
+          key: 'oee_threshold',
+          label: 'OEE Threshold (%)',
+          type: 'number',
+          default: '60',
+          hint: 'Alert fires when a machine OEE value drops BELOW this number. Range: 0–100.',
+        },
+        {
+          key: 'machine_ids',
+          label: 'Machine IDs (comma-separated)',
+          type: 'text',
+          default: '',
+          hint: 'Specific machine IDs to watch, e.g. M01,M02,M03. Leave empty to monitor ALL machines.',
+        },
+      ],
+    },
+    ExampleRule: {
+      description: 'Template rule. No built-in parameters. Add your own key-value pairs below.',
+      fields: [],
+    },
+  };
+
+  function buildParamsForm(containerId, hiddenId, ruleClass, existingParams) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const schema = RULE_PARAMS_SCHEMA[ruleClass];
+    if (!schema) {
+      container.innerHTML = `<div class="params-box"><textarea class="params-raw" id="${containerId}-raw" rows="4" placeholder="{}" oninput="paramsRawSync('${containerId}','${hiddenId}')">${document.getElementById(hiddenId).value || '{}'}</textarea></div>`;
+      return;
+    }
+
+    const existing = existingParams || {};
+
+    let fieldsHtml = schema.fields.map(f => {
+      let val = existing[f.key] !== undefined ? existing[f.key] : f.default;
+      if (f.key === 'machine_ids' && Array.isArray(val)) val = val.join(',');
+      return `
+        <div class="params-field">
+          <label>${f.label}</label>
+          <input
+            type="${f.type}"
+            id="${containerId}-${f.key}"
+            value="${val}"
+            placeholder="${f.default}"
+            oninput="paramsBuilderSync('${containerId}','${hiddenId}')"
+          />
+          <span class="params-hint">${f.hint}</span>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="params-box">
+        <div class="params-rule-desc">${schema.description}</div>
+        ${fieldsHtml}
+        ${schema.fields.length === 0 ? `
+          <div class="params-field">
+            <label>Custom params (JSON)</label>
+            <textarea id="${containerId}-raw" rows="3" placeholder="{}" oninput="paramsRawSync('${containerId}','${hiddenId}')">${document.getElementById(hiddenId).value || '{}'}</textarea>
+          </div>` : ''}
+        <div class="params-preview-row">
+          <span style="font-size:11px;color:var(--muted)">JSON sent to API →</span>
+          <code id="${containerId}-preview" class="params-preview">{}</code>
+        </div>
+      </div>`;
+
+    paramsBuilderSync(containerId, hiddenId);
+  }
+
+  function paramsBuilderSync(containerId, hiddenId) {
+    const schema = RULE_PARAMS_SCHEMA[document.getElementById('cr-class')?.value]
+      || RULE_PARAMS_SCHEMA[_detailRuleClass]
+      || { fields: [] };
+
+    // find which schema this container belongs to
+    const containerSchemaKey = Object.keys(RULE_PARAMS_SCHEMA).find(k => {
+      const s = RULE_PARAMS_SCHEMA[k];
+      return s.fields.some(f => document.getElementById(`${containerId}-${f.key}`) !== null);
+    });
+    const activeSchema = containerSchemaKey ? RULE_PARAMS_SCHEMA[containerSchemaKey] : { fields: [] };
+
+    let params = {};
+    if (activeSchema.fields.length === 0) {
+      const raw = document.getElementById(containerId + '-raw');
+      if (raw) {
+        try { params = JSON.parse(raw.value || '{}'); } catch { params = {}; }
+      }
+    } else {
+      activeSchema.fields.forEach(f => {
+        const el = document.getElementById(`${containerId}-${f.key}`);
+        if (!el) return;
+        let v = el.value.trim();
+        if (f.key === 'machine_ids') {
+          params[f.key] = v ? v.split(',').map(s => s.trim()).filter(Boolean) : [];
+        } else if (f.type === 'number') {
+          params[f.key] = parseFloat(v) || 0;
+        } else {
+          params[f.key] = v;
+        }
+      });
+    }
+
+    const json = JSON.stringify(params);
+    document.getElementById(hiddenId).value = json;
+    const preview = document.getElementById(containerId + '-preview');
+    if (preview) preview.textContent = json;
+  }
+
+  function paramsRawSync(containerId, hiddenId) {
+    paramsBuilderSync(containerId, hiddenId);
+  }
+
+  let _detailRuleClass = 'DowntimeRule';
+
+  // ════════════════════════════════════════ CRON BUILDER
+  const CRON_PRESETS = [
+    { label: 'Every 1 min',   expr: '*/1 * * * *' },
+    { label: 'Every 5 mins',  expr: '*/5 * * * *' },
+    { label: 'Every 15 mins', expr: '*/15 * * * *' },
+    { label: 'Every 30 mins', expr: '*/30 * * * *' },
+    { label: 'Every hour',    expr: '0 * * * *'   },
+    { label: 'Every 6 hrs',   expr: '0 */6 * * *' },
+    { label: 'Every 12 hrs',  expr: '0 */12 * * *'},
+    { label: 'Daily 8am',     expr: '0 8 * * *'   },
+    { label: 'Daily midnight',expr: '0 0 * * *'   },
+    { label: 'Mon–Fri 9am',   expr: '0 9 * * 1-5' },
+    { label: 'Custom',        expr: null           },
+  ];
+
+  function cronToHuman(expr) {
+    if (!expr) return '—';
+    const parts = expr.trim().split(/\s+/);
+    if (parts.length !== 5) return expr;
+    const [min, hr, dom, mon, dow] = parts;
+
+    for (const p of CRON_PRESETS) {
+      if (p.expr && p.expr === expr.trim()) return '⏱ ' + p.label;
+    }
+
+    // build readable string
+    const minTxt = min === '*' ? 'every minute'
+      : min.startsWith('*/') ? `every ${min.slice(2)} minutes`
+      : `at minute ${min}`;
+
+    const hrTxt = hr === '*' ? ''
+      : hr.startsWith('*/') ? `, every ${hr.slice(2)} hours`
+      : `, at ${hr}:00`;
+
+    const dowMap = { '0':'Sun','1':'Mon','2':'Tue','3':'Wed','4':'Thu','5':'Fri','6':'Sat' };
+    const dowTxt = dow === '*' ? ''
+      : dow === '1-5' ? ', Mon–Fri'
+      : `, on ${dow.split(',').map(d => dowMap[d] || d).join(', ')}`;
+
+    const domTxt = dom === '*' ? '' : `, day ${dom} of month`;
+
+    return `⏱ Runs ${minTxt}${hrTxt}${domTxt}${dowTxt}`;
+  }
+
+  function buildCron(containerId, hiddenId, initialExpr) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const init = initialExpr || '*/5 * * * *';
+    const parts = init.trim().split(/\s+/);
+    const [iMin, iHr, iDom, iMon, iDow] = parts.length === 5 ? parts : ['*/5','*','*','*','*'];
+
+    const isCustom = !CRON_PRESETS.some(p => p.expr && p.expr === init.trim());
+
+    container.innerHTML = `
+      <div class="cron-builder">
+        <div class="cron-presets">
+          ${CRON_PRESETS.map(p => `
+            <button type="button"
+              class="cron-preset ${p.expr === init.trim() ? 'selected' : ''} ${p.expr === null && isCustom ? 'selected' : ''}"
+              data-expr="${p.expr || ''}"
+              onclick="cronPresetClick(this, '${containerId}', '${hiddenId}')">
+              ${p.label}
+            </button>`).join('')}
+        </div>
+
+        <div class="cron-custom-row" id="${containerId}-custom" style="${isCustom ? '' : 'display:none'}">
+          <div class="cron-field">
+            <label>Minute</label>
+            <input id="${containerId}-min" value="${iMin}" placeholder="*" oninput="cronInputChange('${containerId}','${hiddenId}')" />
+          </div>
+          <div class="cron-field">
+            <label>Hour</label>
+            <input id="${containerId}-hr" value="${iHr}" placeholder="*" oninput="cronInputChange('${containerId}','${hiddenId}')" />
+          </div>
+          <div class="cron-field">
+            <label>Day (month)</label>
+            <input id="${containerId}-dom" value="${iDom}" placeholder="*" oninput="cronInputChange('${containerId}','${hiddenId}')" />
+          </div>
+          <div class="cron-field">
+            <label>Month</label>
+            <input id="${containerId}-mon" value="${iMon}" placeholder="*" oninput="cronInputChange('${containerId}','${hiddenId}')" />
+          </div>
+          <div class="cron-field">
+            <label>Day (week)</label>
+            <input id="${containerId}-dow" value="${iDow}" placeholder="*" oninput="cronInputChange('${containerId}','${hiddenId}')" />
+          </div>
+        </div>
+
+        <div class="cron-preview">
+          <span class="cron-preview-human" id="${containerId}-human">${cronToHuman(init)}</span>
+          <span class="cron-preview-expr" id="${containerId}-expr">${init}</span>
+        </div>
+      </div>`;
+
+    document.getElementById(hiddenId).value = init;
+  }
+
+  function cronPresetClick(btn, containerId, hiddenId) {
+    document.querySelectorAll(`#${containerId} .cron-preset`).forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    const expr = btn.dataset.expr;
+    const customRow = document.getElementById(containerId + '-custom');
+
+    if (!expr) {
+      // Custom
+      customRow.style.display = 'grid';
+      cronInputChange(containerId, hiddenId);
+    } else {
+      customRow.style.display = 'none';
+      document.getElementById(hiddenId).value = expr;
+      document.getElementById(containerId + '-human').textContent = cronToHuman(expr);
+      document.getElementById(containerId + '-expr').textContent = expr;
+    }
+  }
+
+  function cronInputChange(containerId, hiddenId) {
+    const min = document.getElementById(containerId + '-min')?.value.trim() || '*';
+    const hr  = document.getElementById(containerId + '-hr')?.value.trim()  || '*';
+    const dom = document.getElementById(containerId + '-dom')?.value.trim() || '*';
+    const mon = document.getElementById(containerId + '-mon')?.value.trim() || '*';
+    const dow = document.getElementById(containerId + '-dow')?.value.trim() || '*';
+    const expr = `${min} ${hr} ${dom} ${mon} ${dow}`;
+    document.getElementById(hiddenId).value = expr;
+    document.getElementById(containerId + '-human').textContent = cronToHuman(expr);
+    document.getElementById(containerId + '-expr').textContent = expr;
+  }
+
+  // ════════════════════════════════════════ INIT
+  updateNotifierTemplate();
+  buildCron('create-cron-builder', 'cr-schedule');
+  buildParamsForm('cr-params-builder', 'cr-params', 'DowntimeRule');
+  loadOverview();
+</script>
+</body>
+</html>
