@@ -639,6 +639,14 @@
     </button>
   </div>
 
+  <div class="nav-section">
+    <div class="nav-label">Real-time</div>
+    <button class="nav-btn" onclick="navigate('live-alerts')">
+      <span class="icon">⚡</span> Live Alerts
+      <span id="live-badge" style="display:none;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;margin-left:auto">0</span>
+    </button>
+  </div>
+
   <div class="sidebar-bottom">
     <span class="base-url-label">API Base URL</span>
     <input class="base-url-input" id="baseUrl" value="http://localhost:8000/api/v1" />
@@ -893,10 +901,21 @@
             <option value="log">log</option>
             <option value="webhook">webhook</option>
             <option value="desktop">desktop</option>
+            <option value="webpush">webpush (browser push)</option>
+            <option value="websocket">websocket (real-time frontend)</option>
           </select>
         </div>
         <div class="field full">
           <label>Config JSON</label>
+          <div id="push-buttons" style="display:none;margin-bottom:8px;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="subscribeWebPush()">
+              🔔 Subscribe This Browser
+            </button>
+            <button class="btn btn-danger" onclick="unsubscribeWebPush()">
+              🔕 Unsubscribe This Browser
+            </button>
+          </div>
+          <div id="push-subscribe-status" style="font-size:12px;margin-bottom:6px;color:var(--text-muted)"></div>
           <textarea id="an-config" rows="5"></textarea>
         </div>
       </div>
@@ -905,6 +924,28 @@
         <button class="btn btn-ghost" onclick="navigate('notifiers')">Cancel</button>
       </div>
       <div class="response-box" id="add-notifier-response"></div>
+    </div>
+  </div>
+
+  <!-- ── LIVE ALERTS ── -->
+  <div class="page" id="page-live-alerts">
+    <div class="page-header">
+      <div>
+        <div class="page-title">⚡ Live Alerts</div>
+        <div class="page-subtitle">Real-time alerts via WebSocket</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="ws-status-badge" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:#374151;color:#9ca3af">
+          ● Disconnected
+        </span>
+        <button class="btn btn-ghost" onclick="clearLiveAlerts()">Clear</button>
+      </div>
+    </div>
+    <div id="live-alerts-list" style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+      <div class="empty" style="margin-top:40px">
+        <div class="empty-icon">⚡</div>
+        <div>Waiting for alerts... Make sure <strong>websocket</strong> notifier is added to your rule.</div>
+      </div>
     </div>
   </div>
 
@@ -1303,11 +1344,103 @@
     log:     '{\n  "file": "./logs/alerts.log"\n}',
     webhook: '{\n  "url": "https://hooks.example.com/notify"\n}',
     desktop: '{}',
+    webpush:    '{}',
+    websocket:  '{}',
   };
 
   function updateNotifierTemplate() {
     const type = document.getElementById('an-type').value;
-    document.getElementById('an-config').value = NOTIFIER_TEMPLATES[type] || '{}';
+    const configEl = document.getElementById('an-config');
+    const pushButtons = document.getElementById('push-buttons');
+
+    configEl.value = NOTIFIER_TEMPLATES[type] || '{}';
+
+    // Show push buttons only for webpush type
+    if (pushButtons) pushButtons.style.display = type === 'webpush' ? 'flex' : 'none';
+  }
+
+  // ── Web Push subscription ──────────────────────────────────────────────────
+
+  async function unsubscribeWebPush() {
+    const statusEl = document.getElementById('push-subscribe-status');
+    try {
+      if (!('serviceWorker' in navigator)) {
+        statusEl.textContent = 'Service workers not supported.';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        statusEl.textContent = 'No active subscription found.';
+        statusEl.style.color = 'var(--text-muted)';
+        return;
+      }
+      await sub.unsubscribe();
+      document.getElementById('an-config').value = '{}';
+      statusEl.textContent = '✓ Unsubscribed. You can now subscribe again with the new key.';
+      statusEl.style.color = 'var(--success)';
+      toast('Browser unsubscribed from push notifications.');
+    } catch (err) {
+      statusEl.textContent = 'Error: ' + err.message;
+      statusEl.style.color = 'var(--danger)';
+      toast('Unsubscribe failed: ' + err.message, 'err');
+    }
+  }
+
+  async function subscribeWebPush() {
+    const statusEl = document.getElementById('push-subscribe-status');
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      statusEl.textContent = 'Web Push is not supported in this browser.';
+      statusEl.style.color = 'var(--danger)';
+      return;
+    }
+
+    try {
+      statusEl.textContent = 'Requesting permission...';
+      statusEl.style.color = 'var(--text-muted)';
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        statusEl.textContent = 'Permission denied. Allow notifications in browser settings.';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+
+      statusEl.textContent = 'Registering service worker...';
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
+      statusEl.textContent = 'Fetching VAPID key...';
+      const keyRes = await fetch('/api/v1/vapid-public-key');
+      const keyData = await keyRes.json();
+      const publicKey = keyData.publicKey;
+
+      statusEl.textContent = 'Subscribing...';
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: _urlBase64ToUint8Array(publicKey),
+      });
+
+      const subJson = JSON.stringify({ subscription_info: subscription.toJSON() }, null, 2);
+      document.getElementById('an-config').value = subJson;
+
+      statusEl.textContent = '✓ Subscribed! Config JSON filled automatically. Click Add Notifier to save.';
+      statusEl.style.color = 'var(--success)';
+      toast('Browser subscribed to push notifications!');
+    } catch (err) {
+      statusEl.textContent = 'Error: ' + err.message;
+      statusEl.style.color = 'var(--danger)';
+      toast('Push subscription failed: ' + err.message, 'err');
+    }
+  }
+
+  function _urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
   }
 
   async function submitAddNotifier() {
@@ -1646,6 +1779,124 @@
     document.getElementById(containerId + '-human').textContent = cronToHuman(expr);
     document.getElementById(containerId + '-expr').textContent = expr;
   }
+
+  // ════════════════════════════════════════ WEBSOCKET LIVE ALERTS
+
+  let _ws = null;
+  let _wsReconnectTimer = null;
+  let _liveAlertCount = 0;
+
+  function connectWebSocket() {
+    const wsUrl = document.getElementById('baseUrl').value
+      .replace('http://', 'ws://')
+      .replace('https://', 'wss://')
+      .replace('/api/v1', '/api/v1/ws');
+
+    try {
+      _ws = new WebSocket(wsUrl);
+    } catch (err) {
+      _setWsStatus(false);
+      _scheduleReconnect();
+      return;
+    }
+
+    _ws.onopen = () => {
+      _setWsStatus(true);
+      clearTimeout(_wsReconnectTimer);
+    };
+
+    _ws.onmessage = (event) => {
+      try {
+        const alert = JSON.parse(event.data);
+        _addLiveAlert(alert);
+      } catch (_) {}
+    };
+
+    _ws.onclose = () => {
+      _setWsStatus(false);
+      _scheduleReconnect();
+    };
+
+    _ws.onerror = () => {
+      _setWsStatus(false);
+    };
+  }
+
+  function _scheduleReconnect() {
+    clearTimeout(_wsReconnectTimer);
+    _wsReconnectTimer = setTimeout(connectWebSocket, 4000);
+  }
+
+  function _setWsStatus(connected) {
+    const badge = document.getElementById('ws-status-badge');
+    if (!badge) return;
+    if (connected) {
+      badge.style.background = '#065f46';
+      badge.style.color = '#6ee7b7';
+      badge.textContent = '● Connected';
+    } else {
+      badge.style.background = '#374151';
+      badge.style.color = '#9ca3af';
+      badge.textContent = '● Disconnected';
+    }
+  }
+
+  function _addLiveAlert(alert) {
+    const list = document.getElementById('live-alerts-list');
+    if (!list) return;
+
+    // Remove empty state placeholder
+    const empty = list.querySelector('.empty');
+    if (empty) empty.remove();
+
+    _liveAlertCount++;
+
+    // Update sidebar badge
+    const badge = document.getElementById('live-badge');
+    if (badge) {
+      badge.style.display = 'inline-flex';
+      badge.textContent = _liveAlertCount > 99 ? '99+' : _liveAlertCount;
+    }
+
+    const time = alert.triggered_at
+      ? new Date(alert.triggered_at).toLocaleString()
+      : new Date().toLocaleString();
+
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--danger);border-radius:8px;padding:14px 16px;animation:fadeIn .3s ease';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-weight:600;font-size:14px;color:var(--danger)">⚠️ ${_esc(alert.rule_name || 'Alert')}</div>
+          <div style="margin-top:4px;font-size:13px;color:var(--text)">${_esc(alert.message || '')}</div>
+          ${alert.data && Object.keys(alert.data).length
+            ? `<div style="margin-top:6px;font-size:11px;color:var(--text-muted);font-family:monospace">${_esc(JSON.stringify(alert.data))}</div>`
+            : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);white-space:nowrap">${time}</div>
+      </div>`;
+
+    // Newest alert at the top
+    list.insertBefore(card, list.firstChild);
+
+    // Keep max 50 alerts in view
+    while (list.children.length > 50) list.removeChild(list.lastChild);
+  }
+
+  function clearLiveAlerts() {
+    const list = document.getElementById('live-alerts-list');
+    if (list) list.innerHTML = `<div class="empty" style="margin-top:40px"><div class="empty-icon">⚡</div><div>Waiting for alerts...</div></div>`;
+    _liveAlertCount = 0;
+    const badge = document.getElementById('live-badge');
+    if (badge) badge.style.display = 'none';
+  }
+
+  function _esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Auto-connect on page load
+  connectWebSocket();
 
   // ════════════════════════════════════════ INIT
   updateNotifierTemplate();

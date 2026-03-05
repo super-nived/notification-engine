@@ -5,6 +5,7 @@ Handles startup and shutdown events in a single place.
 Starts the APScheduler on startup and stops it cleanly on shutdown.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -39,6 +40,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configure_logging()
     logger.info("Starting Notification Rule Engine")
     authenticate()
+
+    # Store the main async event loop so background threads (APScheduler)
+    # can submit coroutines to it via run_coroutine_threadsafe.
+    from app.features.stream.manager import manager
+    manager.set_event_loop(asyncio.get_event_loop())
+
     start_scheduler()
     yield
     logger.info("Shutting down Notification Rule Engine")

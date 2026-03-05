@@ -71,6 +71,11 @@ class Settings(BaseSettings):
     # Webhook (optional)
     WEBHOOK_URL: str = ""
 
+    # Web Push / VAPID (optional)
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_CLAIMS_SUB: str = "mailto:admin@example.com"
+
     # Paths
     STATE_DIR: str = "./state"
     LOG_DIR: str = "./logs"
