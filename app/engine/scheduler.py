@@ -248,13 +248,6 @@ def _instantiate_notifier(cls: type, n_type: str, cfg: dict) -> object:
         return cls(url=cfg.get("url", settings.WEBHOOK_URL))
     if n_type == "desktop":
         return cls(timeout_ms=cfg.get("timeout_ms", 5000))
-    if n_type == "webpush":
-        return cls(
-            subscription_info=cfg.get("subscription_info", {}),
-            vapid_public_key=cfg.get("vapid_public_key", settings.VAPID_PUBLIC_KEY),
-            vapid_private_key=cfg.get("vapid_private_key", settings.VAPID_PRIVATE_KEY),
-            vapid_claims_sub=cfg.get("vapid_claims_sub", settings.VAPID_CLAIMS_SUB),
-        )
     if n_type == "websocket":
         return cls()
     return cls(**cfg)

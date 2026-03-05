@@ -9,7 +9,6 @@ and mounts the v1 API router. All startup/shutdown logic lives in
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import api_router
 from app.core.events import lifespan
@@ -40,19 +39,6 @@ register_handlers(app)
 
 # Routes
 app.include_router(api_router)
-
-
-@app.get("/sw.js", include_in_schema=False)
-def service_worker() -> FileResponse:
-    """Serve the push notification service worker.
-
-    Must be served from the root path (not /static/) so its scope
-    covers the entire origin.
-
-    Returns:
-        The sw.js file with the correct Content-Type header.
-    """
-    return FileResponse("sw.js", media_type="application/javascript")
 
 
 @app.get("/dashboard", include_in_schema=False)

@@ -14,7 +14,6 @@ from app.datasources.sqlserver import SqlServerDataSource
 from app.notifiers.desktop_notifier import DesktopNotifier
 from app.notifiers.email_notifier import EmailNotifier
 from app.notifiers.log_notifier import LogNotifier
-from app.notifiers.web_push_notifier import WebPushNotifier
 from app.notifiers.webhook_notifier import WebhookNotifier
 from app.notifiers.websocket_notifier import WebSocketNotifier
 from app.rule_definitions.downtime_rule import DowntimeRule
@@ -39,7 +38,6 @@ NOTIFIER_REGISTRY: dict[str, type] = {
     "email": EmailNotifier,
     "webhook": WebhookNotifier,
     "desktop": DesktopNotifier,
-    "webpush": WebPushNotifier,
     "websocket": WebSocketNotifier,
     # "sms": SmsNotifier,                   ← register new notifiers here
 }
