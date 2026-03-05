@@ -1,14 +1,13 @@
 """
 OEE Rule — detects machines whose OEE falls below a configured threshold.
 
-Monitors a configurable PocketBase OEE collection. Users control which
-machines to watch and the OEE threshold via the ``PATCH /rules/{id}/params``
-API endpoint — no code changes required.
+Monitors the ``oee_shift_machine_summary`` PocketBase collection. Users
+control which machines to watch and the OEE threshold via the API — no
+code changes required.
 
-Deduplication: a machine fires an alert only once per alert window. It is
-cleared from the alerted set when its OEE recovers above the threshold,
-allowing it to fire again on future drops. The alerted set is persisted
-between runs via ``self.state``.
+Deduplication: an alert fires for a machine+shift combination only once.
+It clears when the OEE recovers above the threshold, allowing it to fire
+again on future drops. State is persisted via ``self.state``.
 """
 
 import logging
@@ -20,23 +19,28 @@ from app.rule_definitions.base_rule import BaseRule
 
 logger = logging.getLogger(__name__)
 
-_ALERTED_KEY = "alerted_machines"
+_ALERTED_KEY = "alerted_keys"
 
 
 class OEERule(BaseRule):
     """Detects machines with OEE below ``oee_threshold`` in PocketBase.
 
+    Reads from ``oee_shift_machine_summary``. Key fields used:
+        machine_id, shift_id, shift_date, oee, area_id,
+        availability_index, performance_index, quality_index,
+        total_downtime_minutes, is_active.
+
     Parameters are fully user-editable via the API:
-        collection    — PocketBase collection to query (default: oee_realtime_status)
+        collection    — PocketBase collection (default: oee_shift_machine_summary)
         oee_threshold — Alert when OEE is below this value (default: 60.0)
-        machine_ids   — List of machine IDs to monitor; empty list = all machines
+        machine_ids   — List of machine IDs to monitor; empty = all machines
 
     Args:
         datasource:    Authenticated PocketBase connector.
         notifiers:     One or more notifiers to fire on detection.
         collection:    PocketBase collection name to monitor.
-        oee_threshold: Minimum acceptable OEE value (0–100).
-        machine_ids:   List of machine IDs to filter. Empty = all machines.
+        oee_threshold: Minimum acceptable OEE percentage (0–100).
+        machine_ids:   Specific machine IDs to watch. Empty = all machines.
     """
 
     name = "oee_rule"
@@ -46,7 +50,7 @@ class OEERule(BaseRule):
         self,
         datasource: PocketBaseDataSource,
         notifiers: list[BaseNotifier],
-        collection: str = "oee_realtime_status",
+        collection: str = "oee_shift_machine_summary",
         oee_threshold: float = 60.0,
         machine_ids: list[str] | None = None,
     ) -> None:
@@ -58,31 +62,46 @@ class OEERule(BaseRule):
 
     # ── State helpers ────────────────────────────────────────────────────────
 
-    def _get_alerted(self) -> set[str]:
-        """Return machine IDs currently in an alert state.
+    def _alerted_key(self, machine_id: str, shift_id: str) -> str:
+        """Build a unique deduplication key for a machine+shift pair.
+
+        Args:
+            machine_id: Machine identifier string.
+            shift_id:   Shift identifier string.
 
         Returns:
-            Set of machine ID strings.
+            Composite key string.
+        """
+        return f"{machine_id}:{shift_id}"
+
+    def _get_alerted(self) -> set[str]:
+        """Return machine+shift keys currently in an alert state.
+
+        Returns:
+            Set of composite key strings.
         """
         return set(self.state.get(_ALERTED_KEY, []))
 
     def _save_alerted(self, alerted: set[str]) -> None:
-        """Persist the alerted machines set.
+        """Persist the alerted keys set.
 
         Args:
-            alerted: Updated set of machine ID strings.
+            alerted: Updated set of composite key strings.
         """
         self.state.set(_ALERTED_KEY, list(alerted))
 
     # ── Data fetching ────────────────────────────────────────────────────────
 
     def _build_low_oee_filter(self) -> str:
-        """Build the PocketBase filter for machines below the threshold.
+        """Build the PocketBase filter for active records below the threshold.
+
+        Only queries records where ``is_active = true`` to avoid alerting
+        on completed or historical shifts.
 
         Returns:
             PocketBase filter expression string.
         """
-        base = f"oee < {self.oee_threshold}"
+        base = f"oee < {self.oee_threshold} && is_active = true"
         if not self.machine_ids:
             return base
         machine_filter = " || ".join(
@@ -91,10 +110,10 @@ class OEERule(BaseRule):
         return f"{base} && ({machine_filter})"
 
     def _fetch_low_oee_records(self) -> list[dict[str, Any]]:
-        """Fetch all records where OEE is below the threshold.
+        """Fetch active records where OEE is below the threshold.
 
         Returns:
-            List of record dicts matching the OEE filter.
+            List of record dicts ordered by shift_date descending.
 
         Raises:
             DataSourceError: If the PocketBase request fails.
@@ -102,49 +121,47 @@ class OEERule(BaseRule):
         return self.datasource.fetch({
             "collection": self.collection,
             "filter": self._build_low_oee_filter(),
-            "sort": "-created",
+            "sort": "-shift_date",
             "per_page": 100,
         })
 
     def _fetch_recovered(self, alerted: set[str]) -> set[str]:
-        """Return machines that were alerted but have now recovered.
-
-        A machine is considered recovered when its current OEE is at or
-        above the threshold. Recovered machines are removed from the alerted
-        set so they can fire again on future drops.
+        """Return machine+shift keys whose OEE has recovered above the threshold.
 
         Args:
-            alerted: Machine IDs currently in alert state.
+            alerted: Composite keys currently in alert state.
 
         Returns:
-            Subset of ``alerted`` whose OEE has recovered.
+            Subset of ``alerted`` that have recovered.
         """
         recovered: set[str] = set()
-        for machine_id in alerted:
+        for key in alerted:
             try:
+                machine_id, shift_id = key.split(":", 1)
                 records = self.datasource.fetch({
                     "collection": self.collection,
                     "filter": (
                         f'machine_id = "{machine_id}" '
+                        f'&& shift_id = "{shift_id}" '
                         f'&& oee >= {self.oee_threshold}'
                     ),
-                    "sort": "-created",
+                    "sort": "-shift_date",
                     "per_page": 1,
                 })
                 if records:
-                    recovered.add(machine_id)
+                    recovered.add(key)
             except Exception as exc:
                 logger.warning(
-                    "OEERule: could not check recovery for machine '%s': %s",
-                    machine_id,
-                    exc,
+                    "OEERule: could not check recovery for key '%s': %s", key, exc
                 )
         return recovered
 
     # ── Event building ───────────────────────────────────────────────────────
 
     def _build_event(self, record: dict[str, Any]) -> dict[str, Any]:
-        """Convert a single low-OEE record into an alert event dict.
+        """Convert a low-OEE record into an alert event dict.
+
+        Uses the actual fields from ``oee_shift_machine_summary``.
 
         Args:
             record: Raw record dict from PocketBaseDataSource.
@@ -152,31 +169,39 @@ class OEERule(BaseRule):
         Returns:
             Event dict with ``message`` and ``data`` keys.
         """
-        machine = record.get("machine_id", "unknown")
-        oee_value = record.get("oee", "N/A")
+        machine_id  = record.get("machine_id", "unknown")
+        oee_value   = record.get("oee", "N/A")
+        shift_id    = record.get("shift_id", "N/A")
+        shift_date  = record.get("shift_date", "N/A")
+        area_id     = record.get("area_id", "N/A")
+
         return {
             "message": (
-                f"Machine {machine} OEE is {oee_value}% "
-                f"— below threshold {self.oee_threshold}%"
+                f"Machine {machine_id} OEE is {oee_value}% "
+                f"— below threshold {self.oee_threshold}% "
+                f"(shift {shift_id}, {shift_date})"
             ),
             "data": {
-                "id": record.get("id"),
-                "machine_id": machine,
-                "oee": oee_value,
-                "threshold": self.oee_threshold,
-                "shift": record.get("shift", "N/A"),
-                "recorded_at": record.get("created", "N/A"),
+                "machine_id":              machine_id,
+                "area_id":                 area_id,
+                "shift_id":                shift_id,
+                "shift_date":              shift_date,
+                "oee":                     oee_value,
+                "threshold":               self.oee_threshold,
+                "availability_index":      record.get("availability_index"),
+                "performance_index":       record.get("performance_index"),
+                "quality_index":           record.get("quality_index"),
+                "total_downtime_minutes":  record.get("total_downtime_minutes"),
             },
         }
 
     # ── detect ───────────────────────────────────────────────────────────────
 
     def detect(self) -> list[dict[str, Any]]:
-        """Query PocketBase for machines with OEE below the threshold.
+        """Query PocketBase for active machines with OEE below the threshold.
 
-        Fires an alert only for machines not already in the alerted set.
-        Clears machines from the alerted set when their OEE recovers above
-        the threshold so they can fire again on future drops.
+        Deduplicates by machine+shift key — fires once per machine per shift.
+        Clears a key when OEE recovers so it can fire again on future drops.
 
         Returns:
             List of event dicts. Empty if no new machines are below threshold.
@@ -187,22 +212,27 @@ class OEERule(BaseRule):
         records = self._fetch_low_oee_records()
         alerted = self._get_alerted()
 
-        # Clear machines whose OEE has recovered
+        # Clear keys whose OEE has recovered
         if alerted:
             recovered = self._fetch_recovered(alerted)
             if recovered:
                 alerted -= recovered
                 logger.info(
-                    "OEERule: %d machine(s) recovered: %s", len(recovered), recovered
+                    "OEERule: %d machine+shift(s) recovered: %s",
+                    len(recovered), recovered,
                 )
 
-        # Alert only machines not already in the alerted set
+        # Alert only keys not already in the alerted set
         new_events: list[dict[str, Any]] = []
         for record in records:
             machine_id = record.get("machine_id", "")
-            if machine_id and machine_id not in alerted:
+            shift_id   = record.get("shift_id", "")
+            if not machine_id:
+                continue
+            key = self._alerted_key(machine_id, shift_id)
+            if key not in alerted:
                 new_events.append(self._build_event(record))
-                alerted.add(machine_id)
+                alerted.add(key)
 
         self._save_alerted(alerted)
 
@@ -211,8 +241,7 @@ class OEERule(BaseRule):
             return []
 
         logger.info(
-            "OEERule: %d new machine(s) below %.1f%% OEE threshold",
-            len(new_events),
-            self.oee_threshold,
+            "OEERule: %d new machine+shift(s) below %.1f%% OEE threshold",
+            len(new_events), self.oee_threshold,
         )
         return new_events
