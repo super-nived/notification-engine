@@ -13,6 +13,7 @@ from typing import Any
 
 from app.core.exceptions import NotifierError
 from app.notifiers.base import BaseNotifier
+from app.state.store import RuleStateStore
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,11 @@ class BaseRule(ABC):
 
     Args:
         notifiers: List of notifier instances to fire when events are detected.
+
+    Attributes:
+        state: ``RuleStateStore`` instance for persisting key/value data
+               between runs. Backed by the PocketBase ``state`` JSON field.
+               Available to all subclasses — no extra setup required.
     """
 
     name: str = ""
@@ -36,6 +42,20 @@ class BaseRule(ABC):
 
     def __init__(self, notifiers: list[BaseNotifier]) -> None:
         self.notifiers = notifiers
+        # Lazily bound after instantiation so that scheduler can override
+        # self.name with the PocketBase record name first.
+        self._state_store: RuleStateStore | None = None
+
+    @property
+    def state(self) -> RuleStateStore:
+        """Return the rule's state store, creating it on first access.
+
+        Returns:
+            ``RuleStateStore`` keyed to ``self.name``.
+        """
+        if self._state_store is None or self._state_store._rule_name != self.name:
+            self._state_store = RuleStateStore(self.name)
+        return self._state_store
 
     @abstractmethod
     def detect(self) -> list[dict[str, Any]]:

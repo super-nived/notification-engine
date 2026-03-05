@@ -4,17 +4,23 @@ OEE Rule — detects machines whose OEE falls below a configured threshold.
 Monitors a configurable PocketBase OEE collection. Users control which
 machines to watch and the OEE threshold via the ``PATCH /rules/{id}/params``
 API endpoint — no code changes required.
+
+Deduplication: a machine fires an alert only once per alert window. It is
+cleared from the alerted set when its OEE recovers above the threshold,
+allowing it to fire again on future drops. The alerted set is persisted
+between runs via ``self.state``.
 """
 
 import logging
 from typing import Any
 
-from app.core.exceptions import DataSourceError
 from app.datasources.pocketbase import PocketBaseDataSource
 from app.notifiers.base import BaseNotifier
 from app.rule_definitions.base_rule import BaseRule
 
 logger = logging.getLogger(__name__)
+
+_ALERTED_KEY = "alerted_machines"
 
 
 class OEERule(BaseRule):
@@ -50,13 +56,28 @@ class OEERule(BaseRule):
         self.oee_threshold = float(oee_threshold)
         self.machine_ids = machine_ids or []
 
+    # ── State helpers ────────────────────────────────────────────────────────
+
+    def _get_alerted(self) -> set[str]:
+        """Return machine IDs currently in an alert state.
+
+        Returns:
+            Set of machine ID strings.
+        """
+        return set(self.state.get(_ALERTED_KEY, []))
+
+    def _save_alerted(self, alerted: set[str]) -> None:
+        """Persist the alerted machines set.
+
+        Args:
+            alerted: Updated set of machine ID strings.
+        """
+        self.state.set(_ALERTED_KEY, list(alerted))
+
     # ── Data fetching ────────────────────────────────────────────────────────
 
-    def _build_filter(self) -> str:
-        """Build the PocketBase filter string for the OEE query.
-
-        Filters for records where ``oee < threshold``. If ``machine_ids``
-        is non-empty, adds an additional machine ID filter.
+    def _build_low_oee_filter(self) -> str:
+        """Build the PocketBase filter for machines below the threshold.
 
         Returns:
             PocketBase filter expression string.
@@ -80,10 +101,45 @@ class OEERule(BaseRule):
         """
         return self.datasource.fetch({
             "collection": self.collection,
-            "filter": self._build_filter(),
+            "filter": self._build_low_oee_filter(),
             "sort": "-created",
             "per_page": 100,
         })
+
+    def _fetch_recovered(self, alerted: set[str]) -> set[str]:
+        """Return machines that were alerted but have now recovered.
+
+        A machine is considered recovered when its current OEE is at or
+        above the threshold. Recovered machines are removed from the alerted
+        set so they can fire again on future drops.
+
+        Args:
+            alerted: Machine IDs currently in alert state.
+
+        Returns:
+            Subset of ``alerted`` whose OEE has recovered.
+        """
+        recovered: set[str] = set()
+        for machine_id in alerted:
+            try:
+                records = self.datasource.fetch({
+                    "collection": self.collection,
+                    "filter": (
+                        f'machine_id = "{machine_id}" '
+                        f'&& oee >= {self.oee_threshold}'
+                    ),
+                    "sort": "-created",
+                    "per_page": 1,
+                })
+                if records:
+                    recovered.add(machine_id)
+            except Exception as exc:
+                logger.warning(
+                    "OEERule: could not check recovery for machine '%s': %s",
+                    machine_id,
+                    exc,
+                )
+        return recovered
 
     # ── Event building ───────────────────────────────────────────────────────
 
@@ -113,45 +169,50 @@ class OEERule(BaseRule):
             },
         }
 
-    def _build_events(
-        self, records: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """Convert a list of low-OEE records into alert events.
-
-        Args:
-            records: List of raw record dicts.
-
-        Returns:
-            List of event dicts, one per record.
-        """
-        return [self._build_event(r) for r in records]
-
     # ── detect ───────────────────────────────────────────────────────────────
 
     def detect(self) -> list[dict[str, Any]]:
         """Query PocketBase for machines with OEE below the threshold.
 
-        Fetches records matching the OEE filter and machine ID filter,
-        then returns one event per matching record.
+        Fires an alert only for machines not already in the alerted set.
+        Clears machines from the alerted set when their OEE recovers above
+        the threshold so they can fire again on future drops.
 
         Returns:
-            List of event dicts. Empty if no machines are below threshold.
+            List of event dicts. Empty if no new machines are below threshold.
 
         Raises:
             DataSourceError: If the PocketBase fetch fails.
         """
         records = self._fetch_low_oee_records()
+        alerted = self._get_alerted()
 
-        if not records:
-            logger.debug(
-                "OEERule: no machines below %.1f%%", self.oee_threshold
-            )
+        # Clear machines whose OEE has recovered
+        if alerted:
+            recovered = self._fetch_recovered(alerted)
+            if recovered:
+                alerted -= recovered
+                logger.info(
+                    "OEERule: %d machine(s) recovered: %s", len(recovered), recovered
+                )
+
+        # Alert only machines not already in the alerted set
+        new_events: list[dict[str, Any]] = []
+        for record in records:
+            machine_id = record.get("machine_id", "")
+            if machine_id and machine_id not in alerted:
+                new_events.append(self._build_event(record))
+                alerted.add(machine_id)
+
+        self._save_alerted(alerted)
+
+        if not new_events:
+            logger.debug("OEERule: no new machines below %.1f%%", self.oee_threshold)
             return []
 
-        events = self._build_events(records)
         logger.info(
-            "OEERule: %d machine(s) below %.1f%% OEE threshold",
-            len(events),
+            "OEERule: %d new machine(s) below %.1f%% OEE threshold",
+            len(new_events),
             self.oee_threshold,
         )
-        return events
+        return new_events

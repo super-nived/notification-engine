@@ -73,7 +73,7 @@ class RuleOut(BaseModel):
         schedule:    Cron expression.
         description: Rule description.
         enabled:     Whether the rule is active.
-        params_json: JSON string of current parameters.
+        params_json: Current rule parameters as a dict.
         created_at:  When the rule was registered.
         last_run_at: Timestamp of last execution.
         last_status: Status of last execution.
@@ -85,7 +85,7 @@ class RuleOut(BaseModel):
     schedule: str
     description: str
     enabled: bool
-    params_json: str
+    params_json: dict[str, Any]
     created_at: datetime
     last_run_at: datetime | None = None
     last_status: str | None = None

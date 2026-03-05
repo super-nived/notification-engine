@@ -145,7 +145,7 @@ def _build_rule_instance(rule: dict) -> object:
             f"Rule class '{rule['rule_class']}' not in registry."
         )
 
-    params = json.loads(rule.get("params_json") or "{}")
+    params = rule.get("params_json") or {}
     datasource = _build_datasource(params)
 
     notifier_configs = pb.get_notifiers_for_rule(rule["id"])
@@ -153,7 +153,12 @@ def _build_rule_instance(rule: dict) -> object:
 
     rule_params = {
         k: v for k, v in params.items()
-        if k not in ("datasource_type", "url", "admin_email", "admin_password")
+        if k not in (
+            "datasource_type", "url", "admin_email", "admin_password",
+            # state_file was removed; exclude it so old params_json records
+            # don't cause an unexpected keyword argument error
+            "state_file",
+        )
     }
     instance = rule_cls(datasource=datasource, notifiers=notifiers, **rule_params)
     # Override the class-level name with the PocketBase record name so that

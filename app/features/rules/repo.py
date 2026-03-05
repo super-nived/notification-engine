@@ -6,7 +6,6 @@ PocketBase repository calls. No business logic here.
 All PocketBaseError exceptions propagate to the service layer.
 """
 
-import json
 import logging
 
 from app.db import pb_repositories as pb
@@ -75,7 +74,7 @@ def create(payload: RuleCreate) -> dict:
         "schedule": payload.schedule,
         "description": payload.description or "",
         "enabled": True,
-        "params_json": json.dumps(payload.params or {}),
+        "params_json": payload.params or {},
     }
     return pb.create_rule(data)
 
@@ -114,9 +113,9 @@ def update_params(rule: dict, payload: RuleParamsUpdate) -> dict:
     Raises:
         PocketBaseError: On network or HTTP failure.
     """
-    existing = json.loads(rule.get("params_json") or "{}")
+    existing = rule.get("params_json") or {}
     existing.update(payload.params or {})
-    return pb.update_rule(rule["id"], {"params_json": json.dumps(existing)})
+    return pb.update_rule(rule["id"], {"params_json": existing})
 
 
 def toggle(rule: dict, enabled: bool) -> dict:

@@ -3,11 +3,11 @@ Downtime Rule — detects new shift downtime entries in PocketBase.
 
 Monitors a configurable PocketBase collection and fires an alert
 event for every record created after the last seen timestamp.
-State is persisted between runs in a plain-text file.
+State is persisted between runs via ``self.state`` (PocketBase-backed
+``RuleStateStore``), replacing the old plain-text file approach.
 """
 
 import logging
-from pathlib import Path
 from typing import Any
 
 from app.core.exceptions import DataSourceError
@@ -18,6 +18,7 @@ from app.rule_definitions.base_rule import BaseRule
 logger = logging.getLogger(__name__)
 
 _FALLBACK_TIMESTAMP = "2000-01-01 00:00:00.000Z"
+_STATE_KEY = "last_seen"
 
 
 class DowntimeRule(BaseRule):
@@ -27,11 +28,13 @@ class DowntimeRule(BaseRule):
     no alerts. On subsequent runs, fetches only records created after
     the stored timestamp and returns one event per new record.
 
+    State is stored in PocketBase via ``self.state`` so it survives
+    restarts and is not tied to a specific server path.
+
     Args:
         datasource:  Authenticated PocketBase connector.
         notifiers:   One or more notifiers to fire on detection.
         collection:  PocketBase collection name to monitor.
-        state_file:  Path to file persisting the last-seen timestamp.
     """
 
     name = "downtime_rule"
@@ -42,50 +45,28 @@ class DowntimeRule(BaseRule):
         datasource: PocketBaseDataSource,
         notifiers: list[BaseNotifier],
         collection: str = "ASWNDUBAI_shift_downtime",
-        state_file: str = "./state/downtime_last_seen.txt",
     ) -> None:
         super().__init__(notifiers)
         self.datasource = datasource
         self.collection = collection
-        self.state_file = Path(state_file)
-        self.state_file.parent.mkdir(parents=True, exist_ok=True)
 
     # ── State helpers ────────────────────────────────────────────────────────
 
     def _read_state(self) -> str | None:
-        """Read last-seen timestamp from the state file.
+        """Read last-seen timestamp from the rule state store.
 
         Returns:
-            Timestamp string if file exists and is non-empty, else ``None``.
-
-        Raises:
-            OSError: If the file exists but cannot be read.
+            Timestamp string if previously set, else ``None``.
         """
-        if not self.state_file.exists():
-            return None
-        try:
-            ts = self.state_file.read_text(encoding="utf-8").strip()
-        except OSError as exc:
-            raise OSError(
-                f"Cannot read state file {self.state_file}: {exc}"
-            ) from exc
-        return ts or None
+        return self.state.get(_STATE_KEY)
 
     def _write_state(self, timestamp: str) -> None:
-        """Persist last-seen timestamp to the state file.
+        """Persist last-seen timestamp to the rule state store.
 
         Args:
             timestamp: ISO-8601 timestamp string to save.
-
-        Raises:
-            OSError: If the file cannot be written.
         """
-        try:
-            self.state_file.write_text(timestamp, encoding="utf-8")
-        except OSError as exc:
-            raise OSError(
-                f"Cannot write state file {self.state_file}: {exc}"
-            ) from exc
+        self.state.set(_STATE_KEY, timestamp)
 
     # ── Data fetching ────────────────────────────────────────────────────────
 
@@ -185,7 +166,7 @@ class DowntimeRule(BaseRule):
     def detect(self) -> list[dict[str, Any]]:
         """Query PocketBase for new downtime entries since the last run.
 
-        On first call (no state file), sets baseline and returns ``[]``.
+        On first call (no stored state), sets baseline and returns ``[]``.
         On subsequent calls, fetches new records, builds events, advances
         state, and returns the events.
 
@@ -193,7 +174,6 @@ class DowntimeRule(BaseRule):
             List of event dicts. Empty if nothing new was found.
 
         Raises:
-            OSError:         If state file cannot be read or written.
             DataSourceError: If the PocketBase fetch fails.
         """
         last_seen = self._read_state()

@@ -49,10 +49,11 @@ def _rule_to_domain(rec: dict[str, Any]) -> dict[str, Any]:
         "schedule": rec.get("schedule", ""),
         "description": rec.get("description", ""),
         "enabled": rec.get("enabled", True),
-        "params_json": rec.get("params_json", "{}"),
+        "params_json": rec.get("params_json") or {},
         "created_at": rec.get("created", ""),
         "last_run_at": rec.get("last_run_at"),
         "last_status": rec.get("last_status"),
+        # state is read/written by RuleStateStore — not exposed in domain dict
         # scheduler needs notifiers list — fetched separately when needed
         "notifiers": [],
     }
@@ -180,6 +181,55 @@ def update_rule_last_run(rule_name: str, status: str) -> None:
         return
     now = datetime.now(timezone.utc).isoformat()
     pb_update(RULES_COL, rule["id"], {"last_run_at": now, "last_status": status})
+
+
+def get_rule_state(rule_name: str) -> dict[str, Any]:
+    """Read the ``state`` JSON field for a rule.
+
+    PocketBase returns json fields already parsed, so no manual
+    deserialisation is needed.
+
+    Args:
+        rule_name: Unique rule name string.
+
+    Returns:
+        State dict. Empty dict if the rule is not found or state is unset.
+
+    Raises:
+        PocketBaseError: On network failure.
+    """
+    records = pb_list(RULES_COL, filter_expr=f'name="{rule_name}"')
+    if not records:
+        logger.warning("get_rule_state: rule '%s' not found", rule_name)
+        return {}
+    state = records[0].get("state")
+    if not isinstance(state, dict):
+        return {}
+    return state
+
+
+def update_rule_state(rule_name: str, state: dict[str, Any]) -> None:
+    """Persist the ``state`` JSON field for a rule.
+
+    PocketBase accepts a dict directly for json fields — no manual
+    serialisation needed.
+
+    Args:
+        rule_name: Unique rule name string.
+        state:     Dict to store in the json field.
+
+    Returns:
+        None
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
+    """
+    records = pb_list(RULES_COL, filter_expr=f'name="{rule_name}"')
+    if not records:
+        logger.warning("update_rule_state: rule '%s' not found", rule_name)
+        return
+    rule_id = records[0]["id"]
+    pb_update(RULES_COL, rule_id, {"state": state})
 
 
 def delete_rule(rule_id: str) -> None:
