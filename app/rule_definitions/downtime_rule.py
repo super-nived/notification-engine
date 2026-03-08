@@ -39,6 +39,15 @@ class DowntimeRule(BaseRule):
 
     name = "downtime_rule"
     description = "Alerts when a new shift downtime entry is added."
+    params_schema = [
+        {
+            "key":     "collection",
+            "label":   "PocketBase Collection",
+            "type":    "text",
+            "default": "ASWNDUBAI_shift_downtime",
+            "hint":    "The exact collection name in PocketBase to monitor for new downtime entries.",
+        },
+    ]
 
     def __init__(
         self,

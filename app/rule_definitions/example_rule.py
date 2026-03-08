@@ -27,6 +27,7 @@ class ExampleRule(BaseRule):
 
     name = "example_rule"
     description = "Replace with what this rule detects."
+    params_schema = []  # no built-in params — override in your subclass
 
     def __init__(self, notifiers: list[BaseNotifier], **kwargs: Any) -> None:
         super().__init__(notifiers)

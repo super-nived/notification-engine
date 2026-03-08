@@ -799,7 +799,25 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="border-color:rgba(79,124,255,.3)">
+      <div class="card-title" style="color:var(--accent)">Upload New Rule Class</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        Upload a <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">.py</code>
+        file containing a class that extends <strong>BaseRule</strong>.
+        It will be registered immediately and appear in the Rule Class dropdown below.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 14px;font-size:13px;color:var(--text)">
+          <span>📂</span>
+          <span id="upload-file-label">Choose .py file</span>
+          <input type="file" id="upload-rule-file" accept=".py" style="display:none" onchange="document.getElementById('upload-file-label').textContent=this.files[0]?.name||'Choose .py file'" />
+        </label>
+        <button class="btn btn-primary" onclick="uploadRuleClass()">⬆ Upload & Register</button>
+      </div>
+      <div id="upload-rule-status" style="margin-top:10px;font-size:13px;display:none"></div>
+    </div>
+
+        <div class="card">
       <div class="form-grid">
         <div class="field">
           <label>Name (unique)</label>
@@ -808,9 +826,7 @@
         <div class="field">
           <label>Rule Class</label>
           <select id="cr-class" onchange="buildParamsForm('cr-params-builder','cr-params',this.value)">
-            <option value="DowntimeRule">DowntimeRule</option>
-            <option value="OEERule">OEERule</option>
-            <option value="ExampleRule">ExampleRule</option>
+            <option value="">Loading classes…</option>
           </select>
         </div>
         <div class="field">
@@ -1527,51 +1543,39 @@
   }
 
   // ════════════════════════════════════════ PARAMS BUILDER
+  // Populated dynamically from GET /rules/classes on page load.
 
-  const RULE_PARAMS_SCHEMA = {
-    DowntimeRule: {
-      description: 'Monitors a PocketBase collection and fires an alert for every new record added since the last run.',
-      fields: [
-        {
-          key: 'collection',
-          label: 'PocketBase Collection',
-          type: 'text',
-          default: 'ASWNDUBAI_shift_downtime',
-          hint: 'The exact collection name in PocketBase to monitor for new downtime entries.',
-        },
-      ],
-    },
-    OEERule: {
-      description: 'Monitors the oee_shift_machine_summary collection and alerts when a machine OEE drops below the threshold for an active shift. Alerts once per machine per shift — clears when OEE recovers.',
-      fields: [
-        {
-          key: 'collection',
-          label: 'PocketBase Collection',
-          type: 'text',
-          default: 'oee_shift_machine_summary',
-          hint: 'PocketBase collection to monitor. Default: oee_shift_machine_summary.',
-        },
-        {
-          key: 'oee_threshold',
-          label: 'OEE Alert Threshold (%)',
-          type: 'number',
-          default: '60',
-          hint: 'Alert fires when a machine OEE drops BELOW this value. Range: 0–100.',
-        },
-        {
-          key: 'machine_ids',
-          label: 'Machine IDs (comma-separated)',
-          type: 'text',
-          default: '',
-          hint: 'Specific machine IDs to watch, e.g. M01,M02,M03. Leave empty to monitor ALL machines.',
-        },
-      ],
-    },
-    ExampleRule: {
-      description: 'Template rule. No built-in parameters. Add your own key-value pairs below.',
-      fields: [],
-    },
-  };
+  let RULE_PARAMS_SCHEMA = {};
+
+  async function loadRuleClasses() {
+    const res = await api('GET', '/rules/classes');
+    if (!res.ok) return;
+    const classes = res.data.data || [];
+
+    // Rebuild schema map from API response
+    RULE_PARAMS_SCHEMA = {};
+    classes.forEach(cls => {
+      RULE_PARAMS_SCHEMA[cls.class_name] = {
+        description: cls.description || '',
+        fields: cls.params_schema || [],
+      };
+    });
+
+    // Rebuild class dropdown from API
+    const sel = document.getElementById('cr-class');
+    if (sel) {
+      const prevValue = sel.value;
+      sel.innerHTML = classes.map(cls =>
+        `<option value="${_esc(cls.class_name)}">${_esc(cls.class_name)}</option>`
+      ).join('');
+      // Restore previous selection or default to first
+      if (prevValue && classes.some(c => c.class_name === prevValue)) {
+        sel.value = prevValue;
+      }
+      const selected = sel.value;
+      if (selected) buildParamsForm('cr-params-builder', 'cr-params', selected);
+    }
+  }
 
   function buildParamsForm(containerId, hiddenId, ruleClass, existingParams) {
     const container = document.getElementById(containerId);
@@ -2043,13 +2047,73 @@
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+
+  // ════════════════════════════════════════ UPLOAD RULE CLASS
+
+  async function uploadRuleClass() {
+    const fileInput = document.getElementById('upload-rule-file');
+    const statusEl = document.getElementById('upload-rule-status');
+    const file = fileInput.files[0];
+
+    if (!file) { toast('Choose a .py file first', 'err'); return; }
+    if (!file.name.endsWith('.py')) { toast('Only .py files accepted', 'err'); return; }
+
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--muted)';
+    statusEl.textContent = 'Uploading...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(BASE() + '/rules/upload-class', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        statusEl.style.color = 'var(--green)';
+        statusEl.textContent = '✓ ' + (data.message || 'Uploaded successfully');
+        toast('Rule class uploaded!');
+        fileInput.value = '';
+        document.getElementById('upload-file-label').textContent = 'Choose .py file';
+        // Refresh dropdown with all available classes
+        if (data.data?.available_classes) {
+          refreshRuleClassDropdown(data.data.available_classes, data.data.class_name);
+        }
+      } else {
+        const errMsg = data.detail || data.message || 'Upload failed';
+        statusEl.style.color = 'var(--red)';
+        statusEl.textContent = '✗ ' + errMsg;
+        toast(errMsg, 'err');
+      }
+    } catch (err) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = '✗ Network error: ' + err.message;
+      toast('Upload failed', 'err');
+    }
+  }
+
+  async function refreshRuleClassDropdown(classList, selectValue) {
+    // Reload everything from API so the new class and its params_schema are picked up
+    await loadRuleClasses();
+    if (selectValue) {
+      const sel = document.getElementById('cr-class');
+      if (sel) {
+        sel.value = selectValue;
+        buildParamsForm('cr-params-builder', 'cr-params', selectValue);
+      }
+    }
+  }
+
   // Auto-connect on page load
   connectWebSocket();
 
   // ════════════════════════════════════════ INIT
   updateNotifierTemplate();
   buildCron('create-cron-builder', 'cr-schedule');
-  buildParamsForm('cr-params-builder', 'cr-params', 'DowntimeRule');
+  loadRuleClasses();   // populates class dropdown + RULE_PARAMS_SCHEMA from API
   loadOverview();
   // Pre-load rules into dropdowns that are visible at startup
   loadRulesIntoSelect('nc-rule-id');

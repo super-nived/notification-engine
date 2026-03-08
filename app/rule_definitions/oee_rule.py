@@ -45,6 +45,29 @@ class OEERule(BaseRule):
 
     name = "oee_rule"
     description = "Alerts when a machine OEE drops below the configured threshold."
+    params_schema = [
+        {
+            "key":     "collection",
+            "label":   "PocketBase Collection",
+            "type":    "text",
+            "default": "oee_shift_machine_summary",
+            "hint":    "PocketBase collection to monitor. Default: oee_shift_machine_summary.",
+        },
+        {
+            "key":     "oee_threshold",
+            "label":   "OEE Alert Threshold (%)",
+            "type":    "number",
+            "default": 60.0,
+            "hint":    "Alert fires when a machine OEE drops BELOW this value. Range: 0-100.",
+        },
+        {
+            "key":     "machine_ids",
+            "label":   "Machine IDs (comma-separated)",
+            "type":    "text",
+            "default": "",
+            "hint":    "Specific machine IDs to watch e.g. M01,M02. Leave empty to monitor ALL machines.",
+        },
+    ]
 
     def __init__(
         self,

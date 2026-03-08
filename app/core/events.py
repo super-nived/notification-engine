@@ -41,6 +41,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting Notification Rule Engine")
     authenticate()
 
+    # Load rule files uploaded in previous sessions before starting scheduler
+    from app.engine.registry import load_uploaded_rules
+    load_uploaded_rules()
+
     # Store the main async event loop so background threads (APScheduler)
     # can submit coroutines to it via run_coroutine_threadsafe.
     from app.features.stream.manager import manager

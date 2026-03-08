@@ -39,6 +39,7 @@ class BaseRule(ABC):
 
     name: str = ""
     description: str = ""
+    params_schema: list = []  # override in subclass to expose editable params
 
     def __init__(self, notifiers: list[BaseNotifier]) -> None:
         self.notifiers = notifiers
