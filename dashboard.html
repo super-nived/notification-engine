@@ -5,22 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Notification Engine Dashboard</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --surface2: #22263a;
-      --border: #2e3352;
-      --accent: #4f7cff;
-      --accent2: #7c5cfc;
-      --green: #22c55e;
-      --red: #ef4444;
-      --yellow: #f59e0b;
-      --text: #e2e8f0;
-      --muted: #64748b;
+      --bg: #f5f6fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f7;
+      --border: #e2e5ef;
+      --accent: #e15a2d;
+      --accent-hover: #c94e24;
+      --accent-light: rgba(225,90,45,0.08);
+      --green: #16a34a;
+      --green-light: rgba(22,163,74,0.10);
+      --red: #dc2626;
+      --red-light: rgba(220,38,38,0.10);
+      --yellow: #d97706;
+      --yellow-light: rgba(217,119,6,0.10);
+      --blue: #2563eb;
+      --blue-light: rgba(37,99,235,0.10);
+      --text: #1e2535;
+      --text2: #4b5563;
+      --muted: #9ca3af;
       --radius: 10px;
-      --font: 'Inter', 'Segoe UI', sans-serif;
+      --shadow: 0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04);
+      --font: 'Inter', 'Segoe UI', system-ui, sans-serif;
     }
 
     body {
@@ -29,38 +39,42 @@
       font-family: var(--font);
       min-height: 100vh;
       display: flex;
+      -webkit-font-smoothing: antialiased;
     }
 
     /* ── Sidebar ── */
     .sidebar {
-      width: 220px;
-      min-width: 220px;
+      width: 240px;
+      min-width: 240px;
       background: var(--surface);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      padding: 24px 0;
+      padding: 0;
       position: sticky;
       top: 0;
       height: 100vh;
+      box-shadow: 1px 0 0 var(--border);
     }
 
     .sidebar-logo {
-      padding: 0 20px 24px;
+      padding: 22px 20px 18px;
       font-size: 15px;
       font-weight: 700;
       color: var(--accent);
-      letter-spacing: .3px;
+      letter-spacing: .2px;
       display: flex;
       align-items: center;
       gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
     }
 
-    .sidebar-logo span { font-size: 20px; }
+    .sidebar-logo span { font-size: 18px; }
 
     .nav-section {
       padding: 0 12px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .nav-label {
@@ -68,34 +82,37 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       color: var(--muted);
-      padding: 4px 8px 8px;
+      padding: 8px 8px 5px;
+      font-weight: 600;
     }
 
     .nav-btn {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
       width: 100%;
-      padding: 9px 12px;
+      padding: 8px 12px;
       border: none;
       background: none;
-      color: var(--muted);
-      font-size: 13.5px;
+      color: var(--text2);
+      font-size: 13px;
       font-family: var(--font);
       cursor: pointer;
-      border-radius: 8px;
+      border-radius: 7px;
       text-align: left;
       transition: all .15s;
+      font-weight: 500;
     }
 
     .nav-btn:hover { background: var(--surface2); color: var(--text); }
-    .nav-btn.active { background: var(--accent); color: #fff; }
-    .nav-btn .icon { font-size: 16px; }
+    .nav-btn.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+    .nav-btn .icon { font-size: 15px; }
 
     .sidebar-bottom {
       margin-top: auto;
-      padding: 16px 20px;
+      padding: 14px 16px;
       border-top: 1px solid var(--border);
+      background: var(--surface);
     }
 
     .base-url-input {
@@ -103,23 +120,30 @@
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 6px;
-      color: var(--text);
+      color: var(--text2);
       font-size: 11px;
       padding: 6px 8px;
       font-family: monospace;
+      outline: none;
+      transition: border-color .15s;
     }
+
+    .base-url-input:focus { border-color: var(--accent); }
 
     .base-url-label {
       font-size: 10px;
       color: var(--muted);
       margin-bottom: 5px;
       display: block;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 600;
     }
 
     /* ── Main ── */
     .main {
       flex: 1;
-      padding: 28px 32px;
+      padding: 28px 36px;
       overflow-y: auto;
     }
 
@@ -130,18 +154,21 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 24px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
     }
 
     .page-title {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
+      color: var(--text);
     }
 
     .page-subtitle {
       font-size: 13px;
       color: var(--muted);
-      margin-top: 2px;
+      margin-top: 3px;
     }
 
     /* ── Cards ── */
@@ -149,17 +176,18 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 20px;
+      padding: 22px 24px;
       margin-bottom: 16px;
+      box-shadow: var(--shadow);
     }
 
     .card-title {
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: .5px;
-      margin-bottom: 14px;
+      letter-spacing: 0.8px;
+      margin-bottom: 16px;
     }
 
     /* ── Buttons ── */
@@ -174,24 +202,24 @@
       font-weight: 500;
       cursor: pointer;
       border: none;
-      transition: opacity .15s, transform .1s;
+      transition: background .15s, transform .1s, box-shadow .15s;
     }
 
     .btn:active { transform: scale(.97); }
     .btn:disabled { opacity: .45; cursor: not-allowed; }
 
     .btn-primary { background: var(--accent); color: #fff; }
-    .btn-primary:hover:not(:disabled) { opacity: .87; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
     .btn-success { background: var(--green); color: #fff; }
-    .btn-success:hover:not(:disabled) { opacity: .87; }
+    .btn-success:hover:not(:disabled) { background: #15803d; }
     .btn-danger { background: var(--red); color: #fff; }
-    .btn-danger:hover:not(:disabled) { opacity: .87; }
+    .btn-danger:hover:not(:disabled) { background: #b91c1c; }
     .btn-ghost {
       background: var(--surface2);
       border: 1px solid var(--border);
-      color: var(--text);
+      color: var(--text2);
     }
-    .btn-ghost:hover:not(:disabled) { background: var(--border); }
+    .btn-ghost:hover:not(:disabled) { background: #e5e7eb; color: var(--text); }
     .btn-sm { padding: 5px 10px; font-size: 12px; }
 
     /* ── Form ── */
@@ -208,15 +236,15 @@
     .field.full { grid-column: 1 / -1; }
 
     .field label {
-      font-size: 12px;
-      color: var(--muted);
+      font-size: 13px;
+      color: var(--text2);
       font-weight: 500;
     }
 
     .field input,
     .field select,
     .field textarea {
-      background: var(--surface2);
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 7px;
       color: var(--text);
@@ -224,18 +252,19 @@
       font-family: var(--font);
       padding: 8px 12px;
       outline: none;
-      transition: border-color .15s;
+      transition: border-color .15s, box-shadow .15s;
     }
 
     .field input:focus,
     .field select:focus,
     .field textarea:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
     }
 
     .field textarea { resize: vertical; min-height: 80px; }
 
-    .field select option { background: var(--surface2); }
+    .field select option { background: var(--surface); color: var(--text); }
 
     /* ── Table ── */
     .table-wrap { overflow-x: auto; }
@@ -251,54 +280,61 @@
       padding: 10px 12px;
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: .5px;
+      letter-spacing: 0.5px;
       color: var(--muted);
+      background: var(--surface2);
       border-bottom: 1px solid var(--border);
+      font-weight: 600;
     }
 
     td {
       padding: 11px 12px;
       border-bottom: 1px solid var(--border);
       vertical-align: middle;
+      color: var(--text);
     }
 
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(255,255,255,.02); }
+    tr:hover td { background: var(--surface2); }
 
     .badge {
       display: inline-block;
-      padding: 2px 9px;
+      padding: 3px 9px;
       border-radius: 20px;
       font-size: 11px;
       font-weight: 600;
     }
 
-    .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
-    .badge-red   { background: rgba(239,68,68,.15);  color: var(--red);   }
-    .badge-yellow{ background: rgba(245,158,11,.15); color: var(--yellow);}
-    .badge-blue  { background: rgba(79,124,255,.15); color: var(--accent);}
-    .badge-muted { background: rgba(100,116,139,.15);color: var(--muted); }
+    .badge-green  { background: var(--green-light);  color: var(--green);  }
+    .badge-red    { background: var(--red-light);     color: var(--red);    }
+    .badge-yellow { background: var(--yellow-light);  color: var(--yellow); }
+    .badge-blue   { background: var(--blue-light);    color: var(--blue);   }
+    .badge-muted  { background: var(--surface2);      color: var(--muted);  }
 
-    .mono { font-family: monospace; font-size: 12px; }
+    .mono { font-family: 'Menlo', 'Consolas', monospace; font-size: 12px; }
 
-    /* ── Response box ── */
+    /* ── Response boxes — raw JSON suppressed; toast handles feedback ── */
     .response-box {
-      background: #0d1117;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-      font-family: monospace;
-      font-size: 12px;
-      color: #a3e635;
-      white-space: pre-wrap;
-      word-break: break-all;
-      max-height: 320px;
-      overflow-y: auto;
-      margin-top: 12px;
       display: none;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 7px;
+      font-size: 13px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
     }
 
-    .response-box.visible { display: block; }
+    /* Suppress the .visible class from ever showing raw JSON */
+    .response-box.visible {
+      display: none !important;
+    }
+
+    /* ds-response: plain-text test-connection feedback via inline style */
+    #ds-response {
+      font-weight: 500;
+      border-left: 3px solid var(--accent);
+    }
 
     /* ── Toast ── */
     #toast {
@@ -310,20 +346,22 @@
       border-radius: 9px;
       padding: 12px 18px;
       font-size: 13px;
+      font-weight: 500;
       display: flex;
       align-items: center;
       gap: 10px;
-      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
       z-index: 999;
       opacity: 0;
       transform: translateY(12px);
       transition: all .25s;
       pointer-events: none;
+      color: var(--text);
     }
 
     #toast.show { opacity: 1; transform: translateY(0); }
-    #toast.ok  { border-color: var(--green); }
-    #toast.err { border-color: var(--red); }
+    #toast.ok  { border-left: 4px solid var(--green); }
+    #toast.err { border-left: 4px solid var(--red); }
 
     /* ── Divider ── */
     .divider {
@@ -343,12 +381,14 @@
     .stat-card {
       background: var(--surface);
       border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
       border-radius: var(--radius);
-      padding: 16px 18px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
     }
 
-    .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-    .stat-value { font-size: 26px; font-weight: 700; }
+    .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
 
     /* ── Toggle switch ── */
     .toggle {
@@ -379,9 +419,10 @@
       background: #fff;
       border-radius: 50%;
       transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
 
-    .toggle input:checked + .toggle-slider { background: var(--green); }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
     .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
 
     /* ── Empty state ── */
@@ -392,7 +433,7 @@
       font-size: 13px;
     }
 
-    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.6; }
 
     /* ── Section tabs ── */
     .tabs {
@@ -414,9 +455,10 @@
       margin-bottom: -1px;
       font-family: var(--font);
       transition: color .15s;
+      font-weight: 500;
     }
 
-    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
     .tab:hover:not(.active) { color: var(--text); }
 
     .tab-panel { display: none; }
@@ -440,11 +482,11 @@
     }
 
     .params-rule-desc {
-      font-size: 12px;
-      color: var(--muted);
+      font-size: 13px;
+      color: var(--text2);
       line-height: 1.6;
-      padding: 8px 12px;
-      background: rgba(79,124,255,.07);
+      padding: 10px 14px;
+      background: var(--accent-light);
       border-left: 3px solid var(--accent);
       border-radius: 0 6px 6px 0;
     }
@@ -456,9 +498,9 @@
     }
 
     .params-field label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text2);
     }
 
     .params-field input,
@@ -471,12 +513,15 @@
       font-family: var(--font);
       padding: 8px 12px;
       outline: none;
-      transition: border-color .15s;
+      transition: border-color .15s, box-shadow .15s;
       width: 100%;
     }
 
     .params-field input:focus,
-    .params-field textarea:focus { border-color: var(--accent); }
+    .params-field textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
 
     .params-hint {
       font-size: 11px;
@@ -506,14 +551,14 @@
       border-radius: 20px;
       font-size: 12px;
       font-weight: 500;
-      background: var(--surface);
+      background: var(--surface2);
       border: 1px solid var(--border);
-      color: var(--muted);
+      color: var(--text2);
       cursor: pointer;
       transition: all .15s;
     }
 
-    .sched-chip:hover { border-color: var(--accent); color: var(--text); }
+    .sched-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
     .sched-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
 
     .sched-detail {
@@ -532,7 +577,9 @@
     .sched-group label {
       font-size: 11px;
       color: var(--muted);
-      font-weight: 500;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
     }
 
     .sched-group select,
@@ -545,18 +592,21 @@
       font-family: var(--font);
       padding: 7px 10px;
       outline: none;
-      transition: border-color .15s;
+      transition: border-color .15s, box-shadow .15s;
       min-width: 140px;
     }
 
     .sched-group select:focus,
-    .sched-group input[type="number"]:focus { border-color: var(--accent); }
+    .sched-group input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
 
-    .sched-group select option { background: var(--surface2); }
+    .sched-group select option { background: var(--surface); color: var(--text); }
 
     .sched-summary {
-      background: rgba(34,197,94,.08);
-      border: 1px solid rgba(34,197,94,.2);
+      background: var(--green-light);
+      border: 1px solid rgba(22,163,74,0.2);
       border-radius: 7px;
       padding: 9px 14px;
       font-size: 13px;
@@ -573,15 +623,155 @@
 
     .notifier-info-msg {
       font-size: 13px;
-      color: var(--muted);
+      color: var(--text2);
       padding: 12px 14px;
-      background: rgba(79,124,255,.07);
+      background: var(--accent-light);
       border-left: 3px solid var(--accent);
       border-radius: 0 6px 6px 0;
       line-height: 1.6;
     }
 
     /* ── Alert data chips ── */
+    /* ── Rule creation mode cards ── */
+    .cr-mode-card {
+      flex: 1;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      cursor: pointer;
+      transition: all .15s;
+      background: var(--surface);
+    }
+    .cr-mode-card:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .cr-mode-card.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      box-shadow: 0 0 0 3px rgba(225,90,45,0.10);
+    }
+    .cr-mode-card.active .cr-mode-title { color: var(--accent); }
+
+    /* ── Custom class list cards ── */
+    .cc-class-card {
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all .15s;
+      background: var(--surface);
+    }
+    .cc-class-card:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .cc-class-card.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .cc-class-card.active .cc-class-name { color: var(--accent); }
+    .cc-class-name {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .cc-class-desc-short {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ── Condition type cards ── */
+    .cond-card {
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all .15s;
+      background: var(--surface);
+      user-select: none;
+    }
+    .cond-card:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .cond-card.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .cond-card-icon { font-size: 20px; margin-bottom: 6px; }
+    .cond-card-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .cond-card.active .cond-card-name { color: var(--accent); }
+    .cond-card-short {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ── Condition info panel ── */
+    .cond-info-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cond-info-desc {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .cond-info-when {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 6px;
+    }
+    .cond-info-cases {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+    .cond-info-case {
+      font-size: 12px;
+      color: var(--text2);
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      line-height: 1.5;
+    }
+    .cond-info-case::before {
+      content: '✓';
+      color: var(--accent);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .cond-info-example {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 7px 7px 0;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+    .cond-info-example strong { color: var(--text); }
+
     .alert-data-chips {
       display: flex;
       flex-wrap: wrap;
@@ -595,7 +785,73 @@
       border: 1px solid var(--border);
       border-radius: 5px;
       padding: 2px 8px;
+      color: var(--text2);
     }
+
+    /* ── Step indicators ── */
+    .cr-step {
+      transition: background .2s, color .2s;
+    }
+
+    .cr-step.active {
+      background: var(--accent) !important;
+      color: #fff !important;
+    }
+
+    /* ── Links ── */
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-hover); }
+
+    /* ── Code blocks ── */
+    code {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    pre {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 12px;
+      color: var(--text2);
+      font-family: 'Menlo', 'Consolas', monospace;
+      overflow-x: auto;
+    }
+
+    /* ── WS Status badge default state ── */
+    #ws-status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ── Fade-in animation for live alerts ── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Upload rule label button ── */
+    #upload-file-label {
+      display: inline-block;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background .15s;
+    }
+
+    #upload-file-label:hover { background: var(--accent-hover); }
   </style>
 </head>
 <body>
@@ -614,12 +870,25 @@
   </div>
 
   <div class="nav-section">
+    <div class="nav-label">Data Sources</div>
+    <button class="nav-btn" onclick="navigate('datasources')">
+      <span class="icon">🗄</span> Connections
+    </button>
+    <button class="nav-btn" onclick="navigate('add-datasource')">
+      <span class="icon">➕</span> Add Connection
+    </button>
+  </div>
+
+  <div class="nav-section">
     <div class="nav-label">Rules</div>
     <button class="nav-btn" onclick="navigate('rules')">
       <span class="icon">📋</span> All Rules
     </button>
     <button class="nav-btn" onclick="navigate('create-rule')">
       <span class="icon">➕</span> Create Rule
+    </button>
+    <button class="nav-btn" onclick="navigate('upload-rule')">
+      <span class="icon">📦</span> Upload Rule Class
     </button>
   </div>
 
@@ -647,7 +916,7 @@
     <div class="nav-label">Real-time</div>
     <button class="nav-btn" onclick="navigate('live-alerts')">
       <span class="icon">⚡</span> Live Alerts
-      <span id="live-badge" style="display:none;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;margin-left:auto">0</span>
+      <span id="live-badge" style="display:none;background:var(--accent);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;margin-left:auto">0</span>
     </button>
   </div>
 
@@ -790,66 +1059,315 @@
     </div>
   </div>
 
+  <!-- ── DATASOURCES ── -->
+  <div class="page" id="page-datasources">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Data Sources</div>
+        <div class="page-subtitle">Saved connections used by alert rules</div>
+      </div>
+      <button class="btn btn-primary" onclick="navigate('add-datasource')">+ Add Connection</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="datasources-body">
+            <tr><td colspan="4"><div class="empty"><div class="empty-icon">🗄</div>No connections yet</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADD DATASOURCE ── -->
+  <div class="page" id="page-add-datasource">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Add Connection</div>
+        <div class="page-subtitle">Save a data source connection for use in rules</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="field">
+          <label>Connection Name</label>
+          <input id="ds-name" placeholder="Production PocketBase" />
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <select id="ds-type" onchange="updateDatasourceForm()">
+            <option value="pocketbase">PocketBase</option>
+            <option value="sqlserver">SQL Server</option>
+            <option value="mongodb">MongoDB</option>
+          </select>
+        </div>
+        <div class="field full" id="ds-config-fields">
+          <!-- rendered by updateDatasourceForm() -->
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="testDatasource()">Test Connection</button>
+        <button class="btn btn-success" onclick="submitCreateDatasource()">Save Connection</button>
+        <button class="btn btn-ghost" onclick="navigate('datasources')">Cancel</button>
+      </div>
+      <div class="response-box" id="ds-response"></div>
+    </div>
+  </div>
+
   <!-- ── CREATE RULE ── -->
   <div class="page" id="page-create-rule">
     <div class="page-header">
       <div>
-        <div class="page-title">Create Rule</div>
-        <div class="page-subtitle">Register a new monitoring rule</div>
+        <div class="page-title">Create Alert Rule</div>
+        <div class="page-subtitle">Choose a mode to get started</div>
       </div>
     </div>
 
-    <div class="card" style="border-color:rgba(79,124,255,.3)">
-      <div class="card-title" style="color:var(--accent)">Upload New Rule Class</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
-        Upload a <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">.py</code>
-        file containing a class that extends <strong>BaseRule</strong>.
-        It will be registered immediately and appear in the Rule Class dropdown below.
-      </p>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 14px;font-size:13px;color:var(--text)">
-          <span>📂</span>
-          <span id="upload-file-label">Choose .py file</span>
-          <input type="file" id="upload-rule-file" accept=".py" style="display:none" onchange="document.getElementById('upload-file-label').textContent=this.files[0]?.name||'Choose .py file'" />
-        </label>
-        <button class="btn btn-primary" onclick="uploadRuleClass()">⬆ Upload & Register</button>
+    <!-- Mode switcher -->
+    <div style="display:flex;gap:12px;margin-bottom:24px">
+      <div id="cr-mode-structured" class="cr-mode-card active" onclick="crSwitchMode('structured')">
+        <div style="font-size:22px;margin-bottom:6px">🧩</div>
+        <div style="font-weight:700;font-size:14px;color:var(--text)">Structured Builder</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4">Pick a data source, define a condition using dropdowns. No coding required. Covers 95% of use cases.</div>
       </div>
-      <div id="upload-rule-status" style="margin-top:10px;font-size:13px;display:none"></div>
+      <div id="cr-mode-custom" class="cr-mode-card" onclick="crSwitchMode('custom')">
+        <div style="font-size:22px;margin-bottom:6px">📦</div>
+        <div style="font-weight:700;font-size:14px;color:var(--text)">Custom Rule Class</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4">Use an uploaded Python rule class for complex logic — relation expansion, duration math, multi-step conditions.</div>
+      </div>
     </div>
 
-        <div class="card">
+    <!-- ══ STRUCTURED MODE ══ -->
+    <div id="cr-structured-wrapper">
+
+    <!-- Step indicators -->
+    <div style="display:flex;gap:0;margin-bottom:24px;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+      <div class="cr-step active" id="cr-step-1" style="flex:1;padding:14px 20px;background:var(--accent);color:#fff;text-align:center;cursor:pointer;border-right:1px solid var(--border)" onclick="crGoStep(1)">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.8px;opacity:0.8">Step 1</div>
+        <div style="font-weight:600;margin-top:2px">Data Source</div>
+      </div>
+      <div class="cr-step" id="cr-step-2" style="flex:1;padding:14px 20px;background:var(--surface2);color:var(--text2);text-align:center;cursor:pointer;border-right:1px solid var(--border)" onclick="crGoStep(2)">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Step 2</div>
+        <div style="font-weight:600;margin-top:2px">Condition</div>
+      </div>
+      <div class="cr-step" id="cr-step-3" style="flex:1;padding:14px 20px;background:var(--surface2);color:var(--text2);text-align:center;cursor:pointer" onclick="crGoStep(3)">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Step 3</div>
+        <div style="font-weight:600;margin-top:2px">Schedule & Action</div>
+      </div>
+    </div>
+
+    <!-- Step 1 — Data Source -->
+    <div class="card" id="cr-panel-1">
+      <div class="card-title">1. Select Data Source</div>
       <div class="form-grid">
         <div class="field">
-          <label>Name (unique)</label>
-          <input id="cr-name" placeholder="aswn_downtime" />
+          <label>Connection</label>
+          <select id="cr-datasource-id" onchange="crLoadCollections()">
+            <option value="">— Select a connection —</option>
+          </select>
+          <span style="font-size:12px;color:var(--muted);margin-top:4px;display:block">
+            Don't see yours? <a href="#" onclick="navigate('add-datasource');return false" style="color:var(--accent)">Add a new connection</a>
+          </span>
         </div>
         <div class="field">
-          <label>Rule Class</label>
-          <select id="cr-class" onchange="buildParamsForm('cr-params-builder','cr-params',this.value)">
-            <option value="">Loading classes…</option>
+          <label>Collection / Table</label>
+          <select id="cr-collection" onchange="crLoadFields()">
+            <option value="">— Select connection first —</option>
           </select>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end">
+        <button class="btn btn-primary" onclick="crGoStep(2)">Next: Condition →</button>
+      </div>
+    </div>
+
+    <!-- Step 2 — Condition -->
+    <div class="card" id="cr-panel-2" style="display:none">
+      <div class="card-title">2. Define Condition</div>
+
+      <!-- Condition type cards -->
+      <div style="margin-bottom:20px">
+        <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:10px">What should trigger the alert?</label>
+        <div id="cr-condition-type-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+
+          <div class="cond-card active" data-value="new_record" onclick="crSelectCondType(this)">
+            <div class="cond-card-icon">🆕</div>
+            <div class="cond-card-name">New Record</div>
+            <div class="cond-card-short">A new row is inserted that matches a filter</div>
+          </div>
+
+          <div class="cond-card" data-value="field_update" onclick="crSelectCondType(this)">
+            <div class="cond-card-icon">✏️</div>
+            <div class="cond-card-name">Field Update</div>
+            <div class="cond-card-short">An existing record's field changes to a value</div>
+          </div>
+
+          <div class="cond-card" data-value="threshold" onclick="crSelectCondType(this)">
+            <div class="cond-card-icon">📊</div>
+            <div class="cond-card-name">Threshold</div>
+            <div class="cond-card-short">A numeric field goes above or below a limit</div>
+          </div>
+
+          <div class="cond-card" data-value="no_data" onclick="crSelectCondType(this)">
+            <div class="cond-card-icon">🔇</div>
+            <div class="cond-card-name">No Data</div>
+            <div class="cond-card-short">No records arrive within a time window</div>
+          </div>
+
+          <div class="cond-card" data-value="change" onclick="crSelectCondType(this)">
+            <div class="cond-card-icon">🔄</div>
+            <div class="cond-card-name">Change</div>
+            <div class="cond-card-short">A field's value is different from last check</div>
+          </div>
+
+          <div class="cond-card" data-value="count" onclick="crSelectCondType(this)">
+            <div class="cond-card-icon">🔢</div>
+            <div class="cond-card-name">Count</div>
+            <div class="cond-card-short">Too many matching records in a time window</div>
+          </div>
+
+        </div>
+        <!-- Hidden select keeps existing JS logic intact -->
+        <select id="cr-condition-type" style="display:none" onchange="crRenderConditionHint()">
+          <option value="new_record">new_record</option>
+          <option value="field_update">field_update</option>
+          <option value="threshold">threshold</option>
+          <option value="no_data">no_data</option>
+          <option value="change">change</option>
+          <option value="count">count</option>
+        </select>
+      </div>
+
+      <!-- Condition detail info panel — updates on selection -->
+      <div id="cr-condition-info" style="margin-bottom:20px;padding:16px;border-radius:10px;border:1px solid var(--border);background:var(--surface2)">
+        <!-- filled by crRenderConditionHint() -->
+      </div>
+
+      <!-- Condition fields -->
+      <div class="form-grid">
+        <div class="field" id="cr-field-row">
+          <label>Field</label>
+          <select id="cr-condition-field" onchange="crOnFieldSelect()">
+            <option value="">— Select collection first —</option>
+          </select>
+        </div>
+        <div class="field" id="cr-op-row">
+          <label>Operator</label>
+          <select id="cr-condition-op">
+            <option value="eq">equals</option>
+            <option value="ne">not equals</option>
+            <option value="lt">less than</option>
+            <option value="gt">greater than</option>
+            <option value="lte">less than or equal</option>
+            <option value="gte">greater than or equal</option>
+            <option value="contains">contains</option>
+          </select>
+        </div>
+        <div class="field" id="cr-value-row">
+          <label>Value</label>
+          <input id="cr-condition-value" placeholder='e.g. Released, 60' />
+        </div>
+        <div class="field full" id="cr-extra-row" style="display:none">
+          <label id="cr-extra-label">Window (minutes)</label>
+          <input id="cr-window-minutes" type="number" value="60" min="1" placeholder="60" />
+          <span style="display:none" id="cr-condition-hint"></span>
+        </div>
+        <div class="field full" id="cr-count-limit-row" style="display:none">
+          <label>Alert when count exceeds</label>
+          <input id="cr-count-limit" type="number" value="1" min="1" placeholder="1" />
+        </div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;justify-content:space-between">
+        <button class="btn btn-ghost" onclick="crGoStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="crGoStep(3)">Next: Schedule & Action →</button>
+      </div>
+    </div>
+
+    <!-- Step 3 — Schedule & Action -->
+    <div class="card" id="cr-panel-3" style="display:none">
+      <div class="card-title">3. Schedule & Action</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Rule Name (unique)</label>
+          <input id="cr-name" placeholder="aswn_scheduled_job_alert" />
         </div>
         <div class="field">
           <label>Description</label>
-          <input id="cr-description" placeholder="Alert when new downtime records appear" />
+          <input id="cr-description" placeholder="Alert when a new scheduled job appears" />
         </div>
         <div class="field full">
-          <label>Schedule</label>
+          <label>Check Schedule</label>
           <div id="create-cron-builder"></div>
           <input type="hidden" id="cr-schedule" />
         </div>
-        <div class="field full">
-          <label>Params</label>
-          <div id="cr-params-builder"></div>
-          <input type="hidden" id="cr-params" />
-        </div>
       </div>
-      <div style="margin-top:16px;display:flex;gap:8px">
-        <button class="btn btn-success" onclick="submitCreateRule()">✓ Create Rule</button>
-        <button class="btn btn-ghost" onclick="navigate('rules')">Cancel</button>
+      <div style="margin-top:16px;display:flex;gap:8px;justify-content:space-between">
+        <button class="btn btn-ghost" onclick="crGoStep(2)">← Back</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-success" onclick="submitCreateRule()">✓ Create Rule</button>
+          <button class="btn btn-ghost" onclick="navigate('rules')">Cancel</button>
+        </div>
       </div>
       <div class="response-box" id="create-rule-response"></div>
     </div>
+
+    </div> <!-- end cr-structured-wrapper -->
+
+    <!-- ══ CUSTOM CLASS MODE ══ -->
+    <div id="cr-custom-wrapper" style="display:none">
+
+      <!-- Step 1 — Pick class -->
+      <div class="card">
+        <div class="card-title">1. Select Rule Class</div>
+        <div style="margin-bottom:16px;padding:12px 16px;background:var(--accent-light);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;font-size:13px;color:var(--text2);line-height:1.6">
+          These are Python rule classes that have been uploaded to the server. Each class contains custom detection logic. Select one to configure it below.
+          <span style="display:block;margin-top:6px">Don't see yours? <a href="#" onclick="navigate('upload-rule');return false" style="color:var(--accent);font-weight:600">Upload a rule class →</a></span>
+        </div>
+
+        <div id="cc-class-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:20px">
+          <div class="empty" style="grid-column:1/-1"><div class="empty-icon">⏳</div>Loading classes…</div>
+        </div>
+        <!-- Hidden select synced from card clicks -->
+        <select id="cr-class" style="display:none" onchange="ccOnClassChange()"></select>
+      </div>
+
+      <!-- Step 2 — Params (shown after class selected) -->
+      <div class="card" id="cc-params-card" style="display:none">
+        <div class="card-title">2. Configure Parameters</div>
+        <div id="cc-class-desc" style="margin-bottom:16px;padding:12px 16px;background:var(--surface2);border-left:3px solid var(--border);border-radius:0 8px 8px 0;font-size:13px;color:var(--text2);line-height:1.6"></div>
+        <div id="detail-params-builder" style="display:none"></div>
+        <div id="cc-params-builder"></div>
+        <input type="hidden" id="cr-params" value="{}" />
+      </div>
+
+      <!-- Step 3 — Schedule & Submit (shown after class selected) -->
+      <div class="card" id="cc-schedule-card" style="display:none">
+        <div class="card-title">3. Name & Schedule</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Rule Name (unique)</label>
+            <input id="cc-name" placeholder="my_custom_rule_alert" />
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <input id="cc-description" placeholder="What this rule monitors" />
+          </div>
+          <div class="field full">
+            <label>Check Schedule</label>
+            <div id="cc-cron-builder"></div>
+            <input type="hidden" id="cc-schedule" />
+          </div>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-success" onclick="submitCreateCustomRule()">✓ Create Rule</button>
+          <button class="btn btn-ghost" onclick="navigate('rules')">Cancel</button>
+        </div>
+      </div>
+
+    </div> <!-- end cr-custom-wrapper -->
+
   </div>
 
   <!-- ── NOTIFIER CONFIGS ── -->
@@ -937,6 +1455,89 @@
   </div>
 
   <!-- ── LIVE ALERTS ── -->
+  <div class="page" id="page-upload-rule">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Upload Rule Class</div>
+        <div class="page-subtitle">Upload a custom Python rule for complex conditions</div>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:600px">
+      <div class="card-title">Upload a BaseRule subclass (.py)</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+        Use this for custom logic that the standard condition types can't express —
+        such as relation expansion, duration calculation, multi-field aggregation,
+        or cross-collection checks. The class must extend <code>BaseRule</code> and
+        implement a <code>detect()</code> method.
+      </p>
+
+      <div class="field" style="margin-bottom:16px">
+        <label>Python File (.py)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label for="upload-rule-file" style="
+            display:inline-block;padding:8px 16px;background:var(--accent);
+            color:#fff;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600
+          " id="upload-file-label">Choose .py file</label>
+          <input type="file" id="upload-rule-file" accept=".py" style="display:none"
+            onchange="document.getElementById('upload-file-label').textContent = this.files[0]?.name || 'Choose .py file'" />
+          <span id="upload-rule-status" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+      </div>
+
+      <button class="btn" onclick="uploadRuleClass()">Upload &amp; Register</button>
+
+      <div style="margin-top:24px;padding:16px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text2);border:1px solid var(--border)">
+        <div style="font-weight:600;margin-bottom:4px;color:var(--text);font-size:13px">Working template</div>
+        <div style="color:var(--muted);margin-bottom:12px;font-size:12px">Copy this, fill in your logic, save as <code>my_rule.py</code>, then upload.</div>
+        <pre style="margin:0;white-space:pre-wrap;font-family:monospace;line-height:1.7">from app.rule_definitions.base_rule import BaseRule
+
+class MyCustomRule(BaseRule):
+    name        = "my_custom_rule"
+    description = "Describe what this rule detects."
+
+    # These params appear as form fields when creating the rule.
+    # datasource_type / url / admin_email / admin_password are required
+    # so the scheduler can connect to your data source.
+    params_schema = [
+        {"key": "datasource_type", "label": "Datasource Type", "type": "text",
+         "default": "pocketbase", "hint": "pocketbase | sqlserver | mongodb"},
+        {"key": "url",             "label": "PocketBase URL",  "type": "text",
+         "default": "http://localhost:8090", "hint": "Base URL of your PocketBase"},
+        {"key": "admin_email",     "label": "Admin Email",     "type": "text",
+         "default": "", "hint": "PocketBase admin email"},
+        {"key": "admin_password",  "label": "Admin Password",  "type": "text",
+         "default": "", "hint": "PocketBase admin password"},
+        {"key": "collection",      "label": "Collection Name", "type": "text",
+         "default": "my_collection", "hint": "Collection to monitor"},
+    ]
+
+    def __init__(self, datasource, notifiers, collection="my_collection"):
+        super().__init__(notifiers)
+        self.datasource = datasource
+        self.collection = collection
+
+    def detect(self):
+        records = self.datasource.fetch({
+            "collection": self.collection,
+            "sort": "-created",
+            "per_page": 50,
+        })
+        if not records:
+            return []
+
+        # Example: alert on every record unconditionally
+        return [
+            {
+                "message": f"New record in {self.collection}: {r.get('id')}",
+                "data": r,
+            }
+            for r in records
+        ]</pre>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-live-alerts">
     <div class="page-header">
       <div>
@@ -1038,11 +1639,14 @@
       if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + page + "'"))
         b.classList.add('active');
     });
-    if (page === 'overview') loadOverview();
-    if (page === 'rules') loadRules();
-    if (page === 'logs') loadAllLogs();
-    if (page === 'add-notifier') { updateNotifierTemplate(); loadRulesIntoSelect('an-rule-id'); }
-    if (page === 'notifiers') loadRulesIntoSelect('nc-rule-id');
+    if (page === 'overview')       loadOverview();
+    if (page === 'rules')          loadRules();
+    if (page === 'logs')           loadAllLogs();
+    if (page === 'add-notifier')   { updateNotifierTemplate(); loadRulesIntoSelect('an-rule-id'); }
+    if (page === 'notifiers')      loadRulesIntoSelect('nc-rule-id');
+    if (page === 'datasources')    loadDatasources();
+    if (page === 'add-datasource') { updateDatasourceForm(); }
+    if (page === 'create-rule')    { crSwitchMode('structured'); crGoStep(1); crLoadDatasourceDropdown(); buildCron('create-cron-builder', 'cr-schedule'); }
   }
 
   // ════════════════════════════════════════ API HELPER
@@ -1090,6 +1694,23 @@
   function fmtDate(d) {
     if (!d) return '<span style="color:var(--muted)">—</span>';
     return new Date(d).toLocaleString();
+  }
+
+  function _ruleTypeLabel(r) {
+    if (r.datasource_id) {
+      // Structured rule — show condition type + collection
+      const condMap = {
+        new_record:   'New Record',
+        threshold:    'Threshold',
+        no_data:      'No Data',
+        change:       'Change',
+        count:        'Count',
+        field_update: 'Field Update',
+      };
+      const ct = condMap[r.condition_type] || r.condition_type || 'structured';
+      return `${ct}<span style="color:var(--muted);font-size:11px"> · ${_esc(r.collection_name || '')}</span>`;
+    }
+    return r.rule_class || '—';
   }
 
   // ════════════════════════════════════════ RULES DROPDOWN LOADER
@@ -1144,7 +1765,7 @@
           <tr>
             <td>${r.id}</td>
             <td><strong>${r.name}</strong></td>
-            <td><span class="mono">${r.rule_class}</span></td>
+            <td><span class="mono">${_ruleTypeLabel(r)}</span></td>
             <td><span style="color:var(--green);font-size:12px">${cronToHuman(r.schedule)}</span></td>
             <td>${enabledBadge(r.enabled)}</td>
             <td>${fmtDate(r.last_run_at)}</td>
@@ -1189,7 +1810,7 @@
       <tr>
         <td>${r.id}</td>
         <td><strong>${r.name}</strong></td>
-        <td><span class="mono">${r.rule_class}</span></td>
+        <td><span class="mono">${_ruleTypeLabel(r)}</span></td>
         <td><span style="color:var(--green);font-size:12px">${cronToHuman(r.schedule)}</span></td>
         <td>
           <label class="toggle">
@@ -1236,11 +1857,16 @@
 
     const params = r.params_json || {};
 
+    const isStructured = !!r.datasource_id;
+    const conditionSummary = isStructured
+      ? `${r.condition_type} · ${r.collection_name} · ${r.condition_field || '—'} ${r.condition_op} ${r.condition_value || '—'}`
+      : r.rule_class;
+
     document.getElementById('rule-detail-content').innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:13px">
         <div><span style="color:var(--muted)">ID</span><br><strong>${r.id}</strong></div>
         <div><span style="color:var(--muted)">Name</span><br><strong>${r.name}</strong></div>
-        <div><span style="color:var(--muted)">Class</span><br><span class="mono">${r.rule_class}</span></div>
+        <div><span style="color:var(--muted)">${isStructured ? 'Condition' : 'Class'}</span><br><span class="mono" style="font-size:12px">${_esc(conditionSummary)}</span></div>
         <div><span style="color:var(--muted)">Schedule</span><br><span style="color:var(--green);font-size:12px">${cronToHuman(r.schedule)}</span></div>
         <div><span style="color:var(--muted)">Status</span><br>${enabledBadge(r.enabled)}</div>
         <div><span style="color:var(--muted)">Last Run</span><br>${fmtDate(r.last_run_at)}</div>
@@ -1250,7 +1876,7 @@
     document.getElementById('detail-schedule').value = r.schedule;
     document.getElementById('detail-description').value = r.description || '';
     _detailRuleClass = r.rule_class;
-    buildParamsForm('detail-params-builder', 'detail-params', r.rule_class, params);
+    if (!isStructured) buildParamsForm('detail-params-builder', 'detail-params', r.rule_class, params);
     buildCron('edit-cron-builder', 'detail-schedule', r.schedule);
 
     document.getElementById('rule-detail-panel').style.display = 'block';
@@ -1287,30 +1913,515 @@
   }
 
   // ════════════════════════════════════════ CREATE RULE
-  async function submitCreateRule() {
-    paramsBuilderSync('cr-params-builder', 'cr-params');
-    const name = document.getElementById('cr-name').value.trim();
-    const rule_class = document.getElementById('cr-class').value;
-    const schedule = document.getElementById('cr-schedule').value.trim();
-    const description = document.getElementById('cr-description').value.trim();
-    const paramsRaw = document.getElementById('cr-params').value.trim();
+  // ════════════════════════════════════════ DATASOURCE MANAGEMENT
 
-    if (!name || !schedule) { toast('Name and Schedule are required', 'err'); return; }
+  async function loadDatasources() {
+    const res = await api('GET', '/datasources/');
+    const tbody = document.getElementById('datasources-body');
+    if (!res.ok || !(res.data.data || []).length) {
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-icon">🗄</div>No connections yet. <a href="#" onclick="navigate('add-datasource');return false" style="color:var(--accent)">Add one</a></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = (res.data.data || []).map(d => `
+      <tr>
+        <td><strong>${_esc(d.name)}</strong></td>
+        <td><span style="background:var(--surface2);padding:2px 8px;border-radius:4px;font-size:12px">${_esc(d.type)}</span></td>
+        <td><button class="btn btn-ghost btn-sm" onclick="testDatasourceById('${d.id}', this)">Test</button></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="deleteDatasource('${d.id}')">Delete</button>
+        </td>
+      </tr>`).join('');
+  }
 
-    let params = {};
-    if (paramsRaw) {
-      try { params = JSON.parse(paramsRaw); }
-      catch { toast('Invalid params JSON', 'err'); return; }
+  async function testDatasourceById(id, btn) {
+    btn.textContent = 'Testing…';
+    const res = await api('GET', `/datasources/${id}/test`);
+    btn.textContent = res.ok ? '✓ OK' : '✗ Failed';
+    btn.style.color = res.ok ? 'var(--green)' : 'var(--red)';
+    setTimeout(() => { btn.textContent = 'Test'; btn.style.color = ''; }, 3000);
+  }
+
+  async function deleteDatasource(id) {
+    if (!confirm('Delete this connection?')) return;
+    const res = await api('DELETE', `/datasources/${id}`);
+    if (res.status === 204 || res.ok) { toast('Deleted'); loadDatasources(); }
+    else toast('Delete failed', 'err');
+  }
+
+  function updateDatasourceForm() {
+    const type = document.getElementById('ds-type')?.value || 'pocketbase';
+    const container = document.getElementById('ds-config-fields');
+    if (!container) return;
+
+    const forms = {
+      pocketbase: `
+        <div class="form-grid">
+          <div class="field"><label>PocketBase URL</label><input id="ds-cfg-url" placeholder="http://localhost:8090" /></div>
+          <div class="field"><label>Admin Email</label><input id="ds-cfg-email" placeholder="admin@example.com" /></div>
+          <div class="field"><label>Admin Password</label><input id="ds-cfg-password" type="password" placeholder="••••••••" /></div>
+        </div>`,
+      sqlserver: `
+        <div class="form-grid">
+          <div class="field full"><label>Connection String</label><input id="ds-cfg-connstr" placeholder="mssql+pyodbc://user:pass@host/db?driver=ODBC+Driver+17+for+SQL+Server" /></div>
+        </div>`,
+      mongodb: `
+        <div class="form-grid">
+          <div class="field"><label>MongoDB URI</label><input id="ds-cfg-uri" placeholder="mongodb://localhost:27017" /></div>
+          <div class="field"><label>Database</label><input id="ds-cfg-db" placeholder="my_database" /></div>
+        </div>`,
+    };
+    container.innerHTML = forms[type] || '';
+  }
+
+  function _collectDsConfig() {
+    const type = document.getElementById('ds-type').value;
+    if (type === 'pocketbase') return {
+      url:            document.getElementById('ds-cfg-url')?.value.trim(),
+      admin_email:    document.getElementById('ds-cfg-email')?.value.trim(),
+      admin_password: document.getElementById('ds-cfg-password')?.value,
+    };
+    if (type === 'sqlserver') return {
+      connection_string: document.getElementById('ds-cfg-connstr')?.value.trim(),
+    };
+    if (type === 'mongodb') return {
+      uri:      document.getElementById('ds-cfg-uri')?.value.trim(),
+      database: document.getElementById('ds-cfg-db')?.value.trim(),
+    };
+    return {};
+  }
+
+  async function testDatasource() {
+    // Test during add-datasource flow (save first, test, then delete if failed)
+    const name  = document.getElementById('ds-name').value.trim() || '__test__';
+    const type  = document.getElementById('ds-type').value;
+    const config = _collectDsConfig();
+    const resp = document.getElementById('ds-response');
+    resp.style.display = 'block';
+    resp.textContent = 'Testing connection…';
+
+    const createRes = await api('POST', '/datasources/', { name, type, config });
+    if (!createRes.ok) { resp.textContent = 'Could not reach API: ' + (createRes.data?.detail || ''); resp.style.color = 'var(--red)'; return; }
+
+    const id = createRes.data.data.id;
+    const testRes = await api('GET', `/datasources/${id}/test`);
+    await api('DELETE', `/datasources/${id}`);  // clean up temp record
+
+    if (testRes.ok) {
+      resp.textContent = '✓ Connection successful!';
+      resp.style.color = 'var(--green)';
+    } else {
+      resp.textContent = '✗ Connection failed: ' + (testRes.data?.detail || 'Unknown error');
+      resp.style.color = 'var(--red)';
+    }
+  }
+
+  async function submitCreateDatasource() {
+    const name   = document.getElementById('ds-name').value.trim();
+    const type   = document.getElementById('ds-type').value;
+    const config = _collectDsConfig();
+    if (!name) { toast('Connection name is required', 'err'); return; }
+    const res = await api('POST', '/datasources/', { name, type, config });
+    showResponse('ds-response', res.data);
+    if (res.ok) { toast('Connection saved!'); navigate('datasources'); }
+    else toast('Save failed', 'err');
+  }
+
+  // ════════════════════════════════════════ CREATE RULE (3-STEP)
+
+  let _crFields = [];  // fields loaded for the selected collection
+
+  function crGoStep(n) {
+    [1, 2, 3].forEach(i => {
+      const panel = document.getElementById('cr-panel-' + i);
+      const step  = document.getElementById('cr-step-' + i);
+      if (panel) panel.style.display = i === n ? '' : 'none';
+      if (step)  step.style.background = i === n ? 'var(--accent)' : 'var(--surface2)';
+      if (step)  step.style.color = i === n ? '#fff' : 'var(--text2)';
+    });
+  }
+
+  async function crLoadDatasourceDropdown() {
+    const sel = document.getElementById('cr-datasource-id');
+    if (!sel) return;
+    const res = await api('GET', '/datasources/');
+    if (!res.ok) return;
+    const items = res.data.data || [];
+    sel.innerHTML = '<option value="">— Select a connection —</option>' +
+      items.map(d => `<option value="${d.id}">${_esc(d.name)} (${_esc(d.type)})</option>`).join('');
+    document.getElementById('cr-collection').innerHTML = '<option value="">— Select connection first —</option>';
+  }
+
+  async function crLoadCollections() {
+    const id = document.getElementById('cr-datasource-id').value;
+    const collSel = document.getElementById('cr-collection');
+    if (!id) { collSel.innerHTML = '<option value="">— Select connection first —</option>'; return; }
+    collSel.innerHTML = '<option value="">Loading…</option>';
+    const res = await api('GET', `/datasources/${id}/collections`);
+    if (!res.ok) { collSel.innerHTML = '<option value="">Failed to load</option>'; toast('Could not load collections', 'err'); return; }
+    const cols = res.data.data || [];
+    collSel.innerHTML = '<option value="">— Select a collection —</option>' +
+      cols.map(c => `<option value="${_esc(c)}">${_esc(c)}</option>`).join('');
+    _crFields = [];
+    document.getElementById('cr-condition-field').innerHTML = '<option value="">— Select collection first —</option>';
+  }
+
+  async function crLoadFields() {
+    const dsId       = document.getElementById('cr-datasource-id').value;
+    const collection = document.getElementById('cr-collection').value;
+    const fieldSel   = document.getElementById('cr-condition-field');
+    if (!dsId || !collection) return;
+    fieldSel.innerHTML = '<option value="">Loading…</option>';
+    const res = await api('GET', `/datasources/${dsId}/fields?collection=${encodeURIComponent(collection)}`);
+    if (!res.ok) { fieldSel.innerHTML = '<option value="">Failed to load fields</option>'; return; }
+    _crFields = res.data.data || [];
+    fieldSel.innerHTML = '<option value="">— Select a field —</option>' +
+      _crFields.map(f => `<option value="${_esc(f.name)}" data-type="${f.type}">${_esc(f.name)} (${f.type})</option>`).join('');
+  }
+
+  function crOnFieldSelect() {
+    const sel      = document.getElementById('cr-condition-field');
+    const opSel    = document.getElementById('cr-condition-op');
+    const valueRow = document.getElementById('cr-value-row');
+    const selected = sel.options[sel.selectedIndex];
+    const fieldType = selected ? selected.dataset.type : 'text';
+
+    // Rebuild operator options based on field type
+    const boolOps = [
+      '<option value="eq">equals</option>',
+      '<option value="ne">not equals</option>',
+    ].join('');
+    const numOps = [
+      '<option value="eq">equals</option>',
+      '<option value="ne">not equals</option>',
+      '<option value="lt">less than</option>',
+      '<option value="gt">greater than</option>',
+      '<option value="lte">less than or equal</option>',
+      '<option value="gte">greater than or equal</option>',
+    ].join('');
+    const textOps = [
+      '<option value="eq">equals</option>',
+      '<option value="ne">not equals</option>',
+      '<option value="contains">contains</option>',
+    ].join('');
+    const allOps = [
+      '<option value="eq">equals</option>',
+      '<option value="ne">not equals</option>',
+      '<option value="lt">less than</option>',
+      '<option value="gt">greater than</option>',
+      '<option value="lte">less than or equal</option>',
+      '<option value="gte">greater than or equal</option>',
+      '<option value="contains">contains</option>',
+    ].join('');
+
+    if (fieldType === 'bool') {
+      opSel.innerHTML = boolOps;
+      // Replace free-text input with true/false dropdown
+      valueRow.innerHTML = `
+        <label>Value</label>
+        <select id="cr-condition-value">
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>`;
+    } else if (fieldType === 'number') {
+      opSel.innerHTML = numOps;
+      valueRow.innerHTML = `
+        <label>Value</label>
+        <input id="cr-condition-value" type="number" placeholder="e.g. 60" />`;
+    } else if (fieldType === 'date') {
+      opSel.innerHTML = allOps;
+      valueRow.innerHTML = `
+        <label>Value</label>
+        <input id="cr-condition-value" type="datetime-local" />`;
+    } else {
+      opSel.innerHTML = textOps;
+      valueRow.innerHTML = `
+        <label>Value</label>
+        <input id="cr-condition-value" placeholder="e.g. Released" />`;
+    }
+  }
+
+  function crSelectCondType(card) {
+    // Highlight selected card
+    document.querySelectorAll('#cr-condition-type-cards .cond-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    // Sync hidden select
+    const val = card.dataset.value;
+    document.getElementById('cr-condition-type').value = val;
+    crRenderConditionHint();
+  }
+
+  function crRenderConditionHint() {
+    const type = document.getElementById('cr-condition-type').value;
+    const fieldRow  = document.getElementById('cr-field-row');
+    const opRow     = document.getElementById('cr-op-row');
+    const valueRow  = document.getElementById('cr-value-row');
+    const extraRow  = document.getElementById('cr-extra-row');
+    const countRow  = document.getElementById('cr-count-limit-row');
+    const extraLbl  = document.getElementById('cr-extra-label');
+
+    // Show/hide form rows per condition type
+    const showField  = ['new_record', 'threshold', 'change', 'count', 'field_update'].includes(type);
+    const showOp     = ['new_record', 'threshold', 'count', 'field_update'].includes(type);
+    const showValue  = ['new_record', 'threshold', 'count', 'field_update'].includes(type);
+    const showExtra  = ['no_data', 'count'].includes(type);
+    const showCount  = type === 'count';
+
+    fieldRow.style.display = showField ? '' : 'none';
+    opRow.style.display    = showOp    ? '' : 'none';
+    valueRow.style.display = showValue ? '' : 'none';
+    extraRow.style.display = showExtra ? '' : 'none';
+    countRow.style.display = showCount ? '' : 'none';
+    if (extraLbl) extraLbl.textContent = type === 'count' ? 'Lookback window (minutes)' : 'Window (minutes)';
+
+    // Rich info panel content per condition type
+    const info = {
+      new_record: {
+        icon: '🆕', title: 'New Record',
+        desc: 'Fires once for every new row inserted into the collection after the last check, that also matches your field/value filter. On the very first run it baselines silently — no alert is sent for existing records.',
+        cases: [
+          'Alert when a new job order is created in the system',
+          'Alert when a new downtime entry is logged',
+          'Alert when a new customer complaint is submitted',
+          'Alert when a new sensor reading arrives matching a condition',
+        ],
+        example: '<strong>Example:</strong> Collection = <em>Job_Orders</em> · Field = <em>jobStatus</em> · Operator = <em>equals</em> · Value = <em>Released</em><br>→ Sends an alert every time a new job with status "Released" is inserted.',
+      },
+      field_update: {
+        icon: '✏️', title: 'Field Update',
+        desc: 'Fires when an <strong>existing record\'s</strong> field is updated to match your condition. Unlike New Record, this catches changes on old rows. Each record alerts only once — if the field resets and matches again later, it fires again.',
+        cases: [
+          'Alert when a job\'s isScheduled changes from false → true',
+          'Alert when a maintenance ticket status changes to "Overdue"',
+          'Alert when a machine\'s active flag is turned on',
+          'Alert when an order\'s approval status is set to "Approved"',
+        ],
+        example: '<strong>Example:</strong> Collection = <em>ASWNDUBAI_Job</em> · Field = <em>isScheduled</em> · Operator = <em>equals</em> · Value = <em>true</em><br>→ Sends an alert the moment any existing job record is updated to isScheduled = true.',
+      },
+      threshold: {
+        icon: '📊', title: 'Threshold',
+        desc: 'Checks the <strong>latest record\'s</strong> numeric field against a fixed limit. Alerts once when the value crosses the threshold. Resets automatically when the value recovers — so it won\'t spam alerts every cycle.',
+        cases: [
+          'Alert when OEE drops below 60%',
+          'Alert when machine temperature exceeds 90°C',
+          'Alert when production count falls below target (e.g. < 100 units)',
+          'Alert when error rate goes above 5%',
+        ],
+        example: '<strong>Example:</strong> Collection = <em>OEE_Data</em> · Field = <em>oee</em> · Operator = <em>less than</em> · Value = <em>60</em><br>→ Sends one alert when OEE < 60. Clears when OEE recovers to ≥ 60. No duplicate alerts.',
+      },
+      no_data: {
+        icon: '🔇', title: 'No Data',
+        desc: 'Fires when <strong>no records arrive</strong> within the time window you set. Useful for detecting silent failures — machines that stopped sending data, services that went offline, or feeds that stopped updating.',
+        cases: [
+          'Alert when no sensor readings arrive for 30 minutes (sensor offline)',
+          'Alert when no production data is logged for 1 hour',
+          'Alert when a scheduled data feed stops updating',
+          'Alert when an IoT device goes silent',
+        ],
+        example: '<strong>Example:</strong> Collection = <em>Machine_Readings</em> · Window = <em>30 minutes</em><br>→ If no record is created in the last 30 minutes, sends an alert. Clears automatically when data resumes.',
+      },
+      change: {
+        icon: '🔄', title: 'Change',
+        desc: 'Compares the <strong>latest record\'s field value</strong> against what it was on the previous check. Fires whenever the value is different — regardless of what it changed to. Good for tracking state transitions.',
+        cases: [
+          'Alert when machine shift changes (Morning → Evening)',
+          'Alert when the active operator name changes',
+          'Alert when production mode switches (Auto → Manual)',
+          'Alert when the current job ID changes',
+        ],
+        example: '<strong>Example:</strong> Collection = <em>Machine_Status</em> · Field = <em>currentShift</em><br>→ Every time the shift field has a different value than the previous check, an alert fires showing the old and new values.',
+      },
+      count: {
+        icon: '🔢', title: 'Count',
+        desc: 'Counts how many records match your filter within a rolling time window. Fires when the count <strong>exceeds your limit</strong>. Useful for detecting bursts of activity — too many errors, too many failures in a short period.',
+        cases: [
+          'Alert when more than 5 machine errors occur within 1 hour',
+          'Alert when more than 10 failed logins happen in 15 minutes',
+          'Alert when more than 3 downtime events are logged in a shift',
+          'Alert when defect count exceeds 20 in the last 30 minutes',
+        ],
+        example: '<strong>Example:</strong> Collection = <em>Machine_Errors</em> · Field = <em>severity</em> · Value = <em>high</em> · Window = <em>60 min</em> · Limit = <em>5</em><br>→ Sends an alert if more than 5 high-severity errors appear in the last hour.',
+      },
+    };
+
+    const infoPanel = document.getElementById('cr-condition-info');
+    if (!infoPanel) return;
+    const d = info[type];
+    if (!d) { infoPanel.style.display = 'none'; return; }
+    infoPanel.style.display = '';
+    infoPanel.innerHTML = `
+      <div class="cond-info-title"><span>${d.icon}</span> ${d.title}</div>
+      <div class="cond-info-desc">${d.desc}</div>
+      <div class="cond-info-when">When to use this</div>
+      <div class="cond-info-cases">
+        ${d.cases.map(c => `<div class="cond-info-case">${c}</div>`).join('')}
+      </div>
+      <div class="cond-info-example">${d.example}</div>`;
+  }
+
+  // ════════════════════════════════════════ CREATE RULE MODE SWITCHER
+
+  function crSwitchMode(mode) {
+    const isStructured = mode === 'structured';
+    document.getElementById('cr-structured-wrapper').style.display = isStructured ? '' : 'none';
+    document.getElementById('cr-custom-wrapper').style.display     = isStructured ? 'none' : '';
+    document.getElementById('cr-mode-structured').classList.toggle('active', isStructured);
+    document.getElementById('cr-mode-custom').classList.toggle('active', !isStructured);
+    if (!isStructured) {
+      loadRuleClasses();
+      buildCron('cc-cron-builder', 'cc-schedule');
+    }
+  }
+
+  // ════════════════════════════════════════ CUSTOM CLASS RULE CREATION
+
+  async function loadRuleClasses() {
+    const res = await api('GET', '/rules/classes');
+    if (!res.ok) return;
+    const classes = res.data.data || [];
+
+    // Rebuild schema map
+    RULE_PARAMS_SCHEMA = {};
+    classes.forEach(cls => {
+      RULE_PARAMS_SCHEMA[cls.class_name] = {
+        description: cls.description || '',
+        fields: cls.params_schema || [],
+      };
+    });
+
+    // Sync hidden select
+    const sel = document.getElementById('cr-class');
+    if (sel) {
+      sel.innerHTML = classes.map(cls =>
+        `<option value="${_esc(cls.class_name)}">${_esc(cls.class_name)}</option>`
+      ).join('');
     }
 
-    const res = await api('POST', '/rules/', { name, rule_class, schedule, description, params });
+    // Render class cards
+    const list = document.getElementById('cc-class-list');
+    if (!list) return;
+
+    if (!classes.length) {
+      list.innerHTML = `
+        <div class="empty" style="grid-column:1/-1">
+          <div class="empty-icon">📦</div>
+          <div>No rule classes found. <a href="#" onclick="navigate('upload-rule');return false" style="color:var(--accent)">Upload one first →</a></div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = classes.map((cls, i) => `
+      <div class="cc-class-card ${i === 0 ? 'active' : ''}" data-class="${_esc(cls.class_name)}" onclick="ccSelectClass(this)">
+        <div class="cc-class-name">${_esc(cls.class_name)}</div>
+        <div class="cc-class-desc-short">${_esc(cls.description || 'No description')}</div>
+      </div>`).join('');
+
+    // Auto-select first
+    if (classes.length) {
+      if (sel) sel.value = classes[0].class_name;
+      ccShowParamsFor(classes[0].class_name);
+    }
+  }
+
+  function ccSelectClass(card) {
+    document.querySelectorAll('#cc-class-list .cc-class-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    const cls = card.dataset.class;
+    const sel = document.getElementById('cr-class');
+    if (sel) sel.value = cls;
+    ccShowParamsFor(cls);
+  }
+
+  function ccOnClassChange() {
+    const cls = document.getElementById('cr-class').value;
+    ccShowParamsFor(cls);
+  }
+
+  function ccShowParamsFor(cls) {
+    const schema = RULE_PARAMS_SCHEMA[cls];
+    const paramsCard   = document.getElementById('cc-params-card');
+    const scheduleCard = document.getElementById('cc-schedule-card');
+    const descEl       = document.getElementById('cc-class-desc');
+
+    if (!schema) return;
+
+    if (descEl) descEl.textContent = schema.description || '';
+    paramsCard.style.display   = '';
+    scheduleCard.style.display = '';
+
+    // Reset hidden input
+    document.getElementById('cr-params').value = '{}';
+
+    // Build params form
+    buildParamsForm('cc-params-builder', 'cr-params', cls, {});
+  }
+
+  async function submitCreateCustomRule() {
+    const rule_class  = document.getElementById('cr-class').value;
+    const name        = document.getElementById('cc-name').value.trim();
+    const schedule    = document.getElementById('cc-schedule').value.trim();
+    const description = document.getElementById('cc-description').value.trim();
+
+    if (!rule_class) { toast('Select a rule class', 'err'); return; }
+    if (!name)       { toast('Rule name is required', 'err'); return; }
+    if (!schedule)   { toast('Schedule is required', 'err'); return; }
+
+    paramsBuilderSync('cc-params-builder', 'cr-params');
+    let params = {};
+    try { params = JSON.parse(document.getElementById('cr-params').value || '{}'); }
+    catch { toast('Invalid params', 'err'); return; }
+
+    const payload = { name, schedule, description, rule_class, params };
+    const res = await api('POST', '/rules/', payload);
+
+    if (res.ok) {
+      toast('Rule created! Add a notifier to start receiving alerts.');
+      document.getElementById('cc-name').value = '';
+      document.getElementById('cc-description').value = '';
+      // Navigate to notifiers page for this rule
+      setTimeout(() => navigate('notifiers'), 1200);
+    } else {
+      const msg = res.data?.detail || 'Create failed';
+      toast(msg, 'err');
+    }
+  }
+
+  async function submitCreateRule() {
+    const name          = document.getElementById('cr-name').value.trim();
+    const schedule      = document.getElementById('cr-schedule').value.trim();
+    const description   = document.getElementById('cr-description').value.trim();
+    const datasource_id = document.getElementById('cr-datasource-id').value;
+    const collection_name  = document.getElementById('cr-collection').value;
+    const condition_type   = document.getElementById('cr-condition-type').value;
+    const condition_field  = document.getElementById('cr-condition-field').value;
+    const condition_op     = document.getElementById('cr-condition-op').value;
+    const condition_value  = document.getElementById('cr-condition-value').value.trim();
+    const window_minutes   = parseInt(document.getElementById('cr-window-minutes')?.value) || 60;
+    const count_limit      = parseInt(document.getElementById('cr-count-limit')?.value) || 1;
+
+    if (!name)          { toast('Rule name is required', 'err'); crGoStep(3); return; }
+    if (!schedule)      { toast('Schedule is required', 'err'); crGoStep(3); return; }
+    if (!datasource_id) { toast('Select a connection', 'err'); crGoStep(1); return; }
+    if (!collection_name) { toast('Select a collection', 'err'); crGoStep(1); return; }
+
+    const condition_extra = {};
+    if (['no_data', 'count'].includes(condition_type)) condition_extra.window_minutes = window_minutes;
+    if (condition_type === 'count') condition_extra.count_limit = count_limit;
+
+    const payload = {
+      name, schedule, description,
+      datasource_id, collection_name,
+      condition_type, condition_field, condition_op, condition_value,
+      condition_extra,
+    };
+
+    const res = await api('POST', '/rules/', payload);
     showResponse('create-rule-response', res.data);
     if (res.ok) {
       toast('Rule created!');
-      ['cr-name', 'cr-description', 'cr-params'].forEach(id =>
-        document.getElementById(id).value = '');
+      document.getElementById('cr-name').value = '';
+      document.getElementById('cr-description').value = '';
+      document.getElementById('cr-condition-value').value = '';
       buildCron('create-cron-builder', 'cr-schedule');
-      buildParamsForm('cr-params-builder', 'cr-params', document.getElementById('cr-class').value);
     } else toast('Create failed', 'err');
   }
 
@@ -1546,36 +2657,6 @@
   // Populated dynamically from GET /rules/classes on page load.
 
   let RULE_PARAMS_SCHEMA = {};
-
-  async function loadRuleClasses() {
-    const res = await api('GET', '/rules/classes');
-    if (!res.ok) return;
-    const classes = res.data.data || [];
-
-    // Rebuild schema map from API response
-    RULE_PARAMS_SCHEMA = {};
-    classes.forEach(cls => {
-      RULE_PARAMS_SCHEMA[cls.class_name] = {
-        description: cls.description || '',
-        fields: cls.params_schema || [],
-      };
-    });
-
-    // Rebuild class dropdown from API
-    const sel = document.getElementById('cr-class');
-    if (sel) {
-      const prevValue = sel.value;
-      sel.innerHTML = classes.map(cls =>
-        `<option value="${_esc(cls.class_name)}">${_esc(cls.class_name)}</option>`
-      ).join('');
-      // Restore previous selection or default to first
-      if (prevValue && classes.some(c => c.class_name === prevValue)) {
-        sel.value = prevValue;
-      }
-      const selected = sel.value;
-      if (selected) buildParamsForm('cr-params-builder', 'cr-params', selected);
-    }
-  }
 
   function buildParamsForm(containerId, hiddenId, ruleClass, existingParams) {
     const container = document.getElementById(containerId);
@@ -2017,11 +3098,11 @@
       : new Date().toLocaleString();
 
     const card = document.createElement('div');
-    card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--danger);border-radius:8px;padding:14px 16px;animation:fadeIn .3s ease';
+    card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:14px 16px;animation:fadeIn .3s ease;box-shadow:var(--shadow)';
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
-          <div style="font-weight:600;font-size:14px;color:var(--danger)">⚠️ ${_esc(alert.rule_name || 'Alert')}</div>
+          <div style="font-weight:600;font-size:14px;color:var(--accent)">⚠️ ${_esc(alert.rule_name || 'Alert')}</div>
           <div style="margin-top:4px;font-size:13px;color:var(--text)">${_esc(alert.message || '')}</div>
           ${alert.data && Object.keys(alert.data).length ? _renderAlertDataChips(alert.data) : ''}
         </div>
@@ -2096,13 +3177,18 @@
   }
 
   async function refreshRuleClassDropdown(classList, selectValue) {
-    // Reload everything from API so the new class and its params_schema are picked up
     await loadRuleClasses();
+    // After upload, prompt user to go create a rule with the new class
     if (selectValue) {
-      const sel = document.getElementById('cr-class');
-      if (sel) {
-        sel.value = selectValue;
-        buildParamsForm('cr-params-builder', 'cr-params', selectValue);
+      const go = confirm(`"${selectValue}" uploaded successfully.\n\nGo to Create Rule → Custom Class to schedule it now?`);
+      if (go) {
+        navigate('create-rule');
+        crSwitchMode('custom');
+        // Select the newly uploaded class card once rendered
+        setTimeout(() => {
+          const card = document.querySelector(`#cc-class-list .cc-class-card[data-class="${selectValue}"]`);
+          if (card) ccSelectClass(card);
+        }, 300);
       }
     }
   }
@@ -2112,8 +3198,8 @@
 
   // ════════════════════════════════════════ INIT
   updateNotifierTemplate();
-  buildCron('create-cron-builder', 'cr-schedule');
-  loadRuleClasses();   // populates class dropdown + RULE_PARAMS_SCHEMA from API
+  updateDatasourceForm();   // render default pocketbase config fields
+  crRenderConditionHint();  // set initial condition row visibility
   loadOverview();
   // Pre-load rules into dropdowns that are visible at startup
   loadRulesIntoSelect('nc-rule-id');

@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 RULES_COL = "ASWNDUBAI_rules"
 NOTIFIERS_COL = "ASWNDUBAI_notifier_configs"
 LOGS_COL = "ASWNDUBAI_execution_logs"
+DATASOURCES_COL = "ASWNDUBAI_datasources"
 
 
 # ── Rule helpers ───────────────────────────────────────────────────────────────
@@ -43,16 +44,24 @@ def _rule_to_domain(rec: dict[str, Any]) -> dict[str, Any]:
         Domain dict with normalized field names.
     """
     return {
-        "id": rec["id"],
-        "name": rec.get("name", ""),
-        "rule_class": rec.get("rule_class", ""),
-        "schedule": rec.get("schedule", ""),
-        "description": rec.get("description", ""),
-        "enabled": rec.get("enabled", True),
-        "params_json": rec.get("params_json") or {},
-        "created_at": rec.get("created", ""),
-        "last_run_at": rec.get("last_run_at"),
-        "last_status": rec.get("last_status"),
+        "id":               rec["id"],
+        "name":             rec.get("name", ""),
+        "rule_class":       rec.get("rule_class", ""),
+        "schedule":         rec.get("schedule", ""),
+        "description":      rec.get("description", ""),
+        "enabled":          rec.get("enabled", True),
+        "params_json":      rec.get("params_json") or {},
+        "created_at":       rec.get("created", ""),
+        "last_run_at":      rec.get("last_run_at"),
+        "last_status":      rec.get("last_status"),
+        # Structured condition fields (Grafana-model rules)
+        "datasource_id":    rec.get("datasource_id", ""),
+        "collection_name":  rec.get("collection_name", ""),
+        "condition_type":   rec.get("condition_type", ""),
+        "condition_field":  rec.get("condition_field", ""),
+        "condition_op":     rec.get("condition_op", "eq"),
+        "condition_value":  rec.get("condition_value", ""),
+        "condition_extra":  rec.get("condition_extra") or {},
         # state is read/written by RuleStateStore — not exposed in domain dict
         # scheduler needs notifiers list — fetched separately when needed
         "notifiers": [],
@@ -431,6 +440,113 @@ def get_logs_for_rule(rule_name: str, limit: int = 50) -> list[dict[str, Any]]:
         per_page=limit,
     )
     return [_log_to_domain(r) for r in records]
+
+
+# ── Datasource helpers ─────────────────────────────────────────────────────────
+
+
+def _datasource_to_domain(rec: dict[str, Any]) -> dict[str, Any]:
+    """Map a PocketBase datasources record to a domain dict.
+
+    Args:
+        rec: Raw PocketBase record dict.
+
+    Returns:
+        Domain dict with normalized field names.
+    """
+    return {
+        "id":     rec["id"],
+        "name":   rec.get("name", ""),
+        "type":   rec.get("type", ""),
+        "config": rec.get("config") or {},
+    }
+
+
+# ── Datasources CRUD ───────────────────────────────────────────────────────────
+
+
+def get_all_datasources() -> list[dict[str, Any]]:
+    """Return all saved datasource connections.
+
+    Returns:
+        List of datasource domain dicts.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
+    """
+    records = pb_list(DATASOURCES_COL, sort="created")
+    return [_datasource_to_domain(r) for r in records]
+
+
+def get_datasource_by_id(datasource_id: str) -> dict[str, Any] | None:
+    """Fetch a single datasource by PocketBase record ID.
+
+    Args:
+        datasource_id: PocketBase record ID string.
+
+    Returns:
+        Datasource domain dict, or ``None`` if not found.
+
+    Raises:
+        PocketBaseError: On network failure (404 returns None).
+    """
+    try:
+        rec = pb_get(DATASOURCES_COL, datasource_id)
+        return _datasource_to_domain(rec)
+    except PocketBaseError as exc:
+        if "404" in exc.detail:
+            return None
+        raise
+
+
+def create_datasource(data: dict[str, Any]) -> dict[str, Any]:
+    """Create a new datasource connection record in PocketBase.
+
+    Args:
+        data: Dict with ``name``, ``type``, ``config``.
+
+    Returns:
+        Created datasource domain dict.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
+    """
+    rec = pb_create(DATASOURCES_COL, data)
+    logger.info("Created datasource '%s' (type=%s)", data.get("name"), data.get("type"))
+    return _datasource_to_domain(rec)
+
+
+def update_datasource(datasource_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Update fields on an existing datasource connection.
+
+    Args:
+        datasource_id: PocketBase record ID.
+        data:          Fields to update.
+
+    Returns:
+        Updated datasource domain dict.
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
+    """
+    rec = pb_update(DATASOURCES_COL, datasource_id, data)
+    return _datasource_to_domain(rec)
+
+
+def delete_datasource(datasource_id: str) -> None:
+    """Delete a datasource connection by ID.
+
+    Args:
+        datasource_id: PocketBase record ID.
+
+    Returns:
+        None
+
+    Raises:
+        PocketBaseError: On network or HTTP failure.
+    """
+    pb_delete(DATASOURCES_COL, datasource_id)
+    logger.info("Deleted datasource id=%s", datasource_id)
 
 
 def get_all_logs(limit: int = 100) -> list[dict[str, Any]]:

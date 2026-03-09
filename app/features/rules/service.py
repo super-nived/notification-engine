@@ -61,10 +61,13 @@ def create_rule(payload: RuleCreate) -> dict:
         RuleConfigError: If the rule class is not in the registry.
         PocketBaseError: On network or HTTP failure.
     """
-    _validate_rule_class(payload.rule_class)
+    # Structured rules (datasource_id set) skip class validation entirely.
+    # Legacy class-based rules must have a registered rule_class.
+    if not payload.datasource_id:
+        _validate_rule_class(payload.rule_class)
     rule = repo.create(payload)
     sched.reload_rule(rule["name"])
-    logger.info("Created rule '%s' (%s)", rule["name"], rule["rule_class"])
+    logger.info("Created rule '%s' (datasource=%s class=%s)", rule["name"], rule.get("datasource_id"), rule["rule_class"])
     return rule
 
 

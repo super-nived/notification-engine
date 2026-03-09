@@ -15,6 +15,7 @@ from apscheduler.triggers.cron import CronTrigger
 from app.core.exceptions import RuleConfigError, SchedulerError
 from app.core.settings import settings
 from app.db import pb_repositories as pb
+# pb.get_datasource_by_id is used in _build_engine_instance
 from app.engine.registry import DATASOURCE_REGISTRY, NOTIFIER_REGISTRY, RULE_REGISTRY
 from app.engine.runner import run_rule
 
@@ -127,42 +128,88 @@ def _register_job(rule: dict) -> None:
 
 
 def _build_rule_instance(rule: dict) -> object:
-    """Instantiate a rule class from a domain dict.
+    """Instantiate a rule from a domain dict.
+
+    Supports two modes:
+    - Structured (Grafana model): ``datasource_id`` is set — builds a
+      ``RuleEngine`` instance from the structured condition fields.
+    - Legacy class-based: ``rule_class`` is set — instantiates the
+      registered Python class with ``params_json`` as keyword args.
 
     Args:
-        rule: Rule domain dict containing ``rule_class``, ``params_json``,
-              and a list of notifier config dicts under ``notifiers``.
+        rule: Rule domain dict from ``pb_repositories``.
 
     Returns:
         Instantiated rule ready to be scheduled.
 
     Raises:
-        RuleConfigError: If the rule class or datasource type is unknown.
+        RuleConfigError: If the class / datasource type is unknown.
     """
-    rule_cls = RULE_REGISTRY.get(rule["rule_class"])
+    notifier_configs = pb.get_notifiers_for_rule(rule["id"])
+    notifiers = _build_notifiers(notifier_configs)
+
+    # ── Structured mode ───────────────────────────────────────────────────────
+    if rule.get("datasource_id"):
+        return _build_engine_instance(rule, notifiers)
+
+    # ── Legacy class-based mode ───────────────────────────────────────────────
+    rule_cls = RULE_REGISTRY.get(rule.get("rule_class", ""))
     if not rule_cls:
         raise RuleConfigError(
-            f"Rule class '{rule['rule_class']}' not in registry."
+            f"Rule class '{rule.get('rule_class')}' not in registry."
         )
 
     params = rule.get("params_json") or {}
     datasource = _build_datasource(params)
 
-    notifier_configs = pb.get_notifiers_for_rule(rule["id"])
-    notifiers = _build_notifiers(notifier_configs)
-
     rule_params = {
         k: v for k, v in params.items()
         if k not in (
             "datasource_type", "url", "admin_email", "admin_password",
-            # state_file was removed; exclude it so old params_json records
-            # don't cause an unexpected keyword argument error
             "state_file",
         )
     }
     instance = rule_cls(datasource=datasource, notifiers=notifiers, **rule_params)
     # Override the class-level name with the PocketBase record name so that
     # execution logs and last_run_at updates use the correct rule identifier.
+    instance.name = rule["name"]
+    return instance
+
+
+def _build_engine_instance(rule: dict, notifiers: list) -> object:
+    """Build a RuleEngine instance from a structured rule domain dict.
+
+    Args:
+        rule:      Rule domain dict with datasource_id and condition fields.
+        notifiers: Pre-built list of notifier instances.
+
+    Returns:
+        Configured ``RuleEngine`` instance.
+
+    Raises:
+        RuleConfigError: If the datasource is not found or type unknown.
+    """
+    from app.engine.rule_engine import RuleEngine
+
+    datasource_record = pb.get_datasource_by_id(rule["datasource_id"])
+    if not datasource_record:
+        raise RuleConfigError(
+            f"Datasource id '{rule['datasource_id']}' not found for rule '{rule['name']}'."
+        )
+
+    from app.features.datasources.service import _build_connector
+    datasource = _build_connector(datasource_record)
+
+    instance = RuleEngine(
+        datasource=datasource,
+        notifiers=notifiers,
+        collection_name=rule.get("collection_name", ""),
+        condition_type=rule.get("condition_type", "new_record"),
+        condition_field=rule.get("condition_field", ""),
+        condition_op=rule.get("condition_op", "eq"),
+        condition_value=rule.get("condition_value", ""),
+        condition_extra=rule.get("condition_extra") or {},
+    )
     instance.name = rule["name"]
     return instance
 

@@ -69,12 +69,21 @@ def create(payload: RuleCreate) -> dict:
         PocketBaseError: On network or HTTP failure.
     """
     data = {
-        "name": payload.name,
-        "rule_class": payload.rule_class,
-        "schedule": payload.schedule,
-        "description": payload.description or "",
-        "enabled": True,
-        "params_json": payload.params or {},
+        "name":             payload.name,
+        "schedule":         payload.schedule,
+        "description":      payload.description or "",
+        "enabled":          True,
+        # Structured condition fields
+        "datasource_id":    payload.datasource_id or "",
+        "collection_name":  payload.collection_name or "",
+        "condition_type":   payload.condition_type or "",
+        "condition_field":  payload.condition_field or "",
+        "condition_op":     payload.condition_op or "eq",
+        "condition_value":  payload.condition_value or "",
+        "condition_extra":  payload.condition_extra or {},
+        # Legacy class-based fields
+        "rule_class":       payload.rule_class or "",
+        "params_json":      payload.params or {},
     }
     return pb.create_rule(data)
 
@@ -97,6 +106,18 @@ def update(rule: dict, payload: RuleUpdate) -> dict:
         data["schedule"] = payload.schedule
     if payload.description is not None:
         data["description"] = payload.description
+    if payload.collection_name is not None:
+        data["collection_name"] = payload.collection_name
+    if payload.condition_type is not None:
+        data["condition_type"] = payload.condition_type
+    if payload.condition_field is not None:
+        data["condition_field"] = payload.condition_field
+    if payload.condition_op is not None:
+        data["condition_op"] = payload.condition_op
+    if payload.condition_value is not None:
+        data["condition_value"] = payload.condition_value
+    if payload.condition_extra is not None:
+        data["condition_extra"] = payload.condition_extra
     return pb.update_rule(rule["id"], data)
 
 
