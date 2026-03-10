@@ -1,5 +1,8 @@
 """
 Email notifier — sends alert events via SMTP.
+
+Delivery is this module's single responsibility. The HTML and
+plain-text email bodies are built by ``email_template``.
 """
 
 import logging
@@ -10,6 +13,7 @@ from typing import Any
 
 from app.core.exceptions import NotifierError
 from app.notifiers.base import BaseNotifier
+from app.notifiers.email_template import build_html, build_plain_text
 
 logger = logging.getLogger(__name__)
 
@@ -69,30 +73,26 @@ class EmailNotifier(BaseNotifier):
     def _build_message(self, event: dict[str, Any]) -> MIMEMultipart:
         """Construct the MIME email message from an event dict.
 
+        Sends both HTML (rich template) and plain-text (fallback)
+        parts so the email renders correctly in all clients. Template
+        rendering is delegated to ``email_template``.
+
         Args:
             event: Alert event dict.
 
         Returns:
-            Populated ``MIMEMultipart`` message ready to send.
+            Populated ``MIMEMultipart("alternative")`` message ready
+            to send.
         """
-        rule = event.get("rule_name", "unknown")
         message = event.get("message", "")
-        data = event.get("data", {})
-        triggered_at = event.get("triggered_at", "")
+        subject = f"{self.subject_prefix} {message}"
 
-        subject = f"{self.subject_prefix} {rule} — {message}"
-        body = (
-            f"Rule:         {rule}\n"
-            f"Triggered At: {triggered_at}\n"
-            f"Message:      {message}\n\n"
-            f"Data:\n{data}"
-        )
-
-        msg = MIMEMultipart()
+        msg = MIMEMultipart("alternative")
         msg["From"] = self.from_email
         msg["To"] = ", ".join(self.to_email)
         msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
+        msg.attach(MIMEText(build_plain_text(event), "plain"))
+        msg.attach(MIMEText(build_html(event), "html"))
         return msg
 
     def _smtp_send(self, msg: MIMEMultipart) -> None:

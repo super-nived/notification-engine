@@ -18,6 +18,7 @@ from app.datasources.sqlserver import SqlServerDataSource
 from app.notifiers.desktop_notifier import DesktopNotifier
 from app.notifiers.email_notifier import EmailNotifier
 from app.notifiers.log_notifier import LogNotifier
+from app.notifiers.nats_notifier import NatsNotifier
 from app.notifiers.webhook_notifier import WebhookNotifier
 from app.notifiers.websocket_notifier import WebSocketNotifier
 from app.rule_definitions.downtime_rule import DowntimeRule
@@ -91,11 +92,12 @@ def load_uploaded_rules() -> None:
 # Key must match the ``notifier_type`` value stored in ``NotifierConfigModel``.
 
 NOTIFIER_REGISTRY: dict[str, type] = {
-    "log": LogNotifier,
-    "email": EmailNotifier,
-    "webhook": WebhookNotifier,
-    "desktop": DesktopNotifier,
+    "log":       LogNotifier,
+    "email":     EmailNotifier,
+    "webhook":   WebhookNotifier,
+    "desktop":   DesktopNotifier,
     "websocket": WebSocketNotifier,
+    "nats":      NatsNotifier,
     # "sms": SmsNotifier,                   ← register new notifiers here
 }
 

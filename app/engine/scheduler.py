@@ -302,6 +302,11 @@ def _instantiate_notifier(cls: type, n_type: str, cfg: dict) -> object:
         return cls(timeout_ms=cfg.get("timeout_ms", 5000))
     if n_type == "websocket":
         return cls()
+    if n_type == "nats":
+        return cls(
+            url=cfg.get("url", "nats://localhost:4222"),
+            subject=cfg.get("subject", "alerts.notification_engine"),
+        )
     return cls(**cfg)
 
 

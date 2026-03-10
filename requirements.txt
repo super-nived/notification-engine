@@ -19,6 +19,9 @@ requests==2.32.3
 pymongo==4.10.1          # MongoDB
 pyodbc==5.2.0            # SQL Server
 
+# Notifiers
+nats-py==2.7.2           # NATS message broker notifier
+
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0

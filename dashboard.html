@@ -1435,11 +1435,12 @@
         <div class="field">
           <label>Notifier Type</label>
           <select id="an-type" onchange="updateNotifierTemplate()">
-            <option value="email">email</option>
-            <option value="log">log</option>
-            <option value="webhook">webhook</option>
-            <option value="desktop">desktop</option>
-            <option value="websocket">websocket (real-time frontend)</option>
+            <option value="email">Email</option>
+            <option value="webhook">Webhook (Slack, Teams, HTTP)</option>
+            <option value="nats">NATS (message broker)</option>
+            <option value="websocket">WebSocket (real-time dashboard)</option>
+            <option value="log">Log file</option>
+            <option value="desktop">Desktop notification</option>
           </select>
         </div>
         <div class="field full" id="an-config-container">
@@ -1739,6 +1740,7 @@ class MyCustomRule(BaseRule):
       case 'log':       return cfg.file ? `File: ${_esc(cfg.file)}` : 'log';
       case 'webhook':   return cfg.url ? `URL: ${_esc(cfg.url)}` : 'webhook';
       case 'desktop':   return cfg.timeout !== undefined ? `Timeout: ${cfg.timeout}ms` : 'desktop';
+      case 'nats':      return cfg.url ? `${_esc(cfg.url)} → ${_esc(cfg.subject || 'alerts')}` : 'nats';
       case 'websocket': return 'Real-time push';
       default:          return _esc(type);
     }
@@ -2540,10 +2542,27 @@ class MyCustomRule(BaseRule):
             <input type="number" id="${containerId}-timeout" placeholder="5000" value="${existingCfg.timeout !== undefined ? existingCfg.timeout : 5000}" />
           </div>`;
         break;
+      case 'nats':
+        container.innerHTML = `
+          <div class="params-field">
+            <label>NATS Server URL</label>
+            <input type="text" id="${containerId}-url" placeholder="nats://localhost:4222" value="${_esc(existingCfg.url || 'nats://localhost:4222')}" />
+            <span class="params-hint">URL of your NATS server. Use nats:// for plain, tls:// for TLS.</span>
+          </div>
+          <div class="params-field">
+            <label>Subject</label>
+            <input type="text" id="${containerId}-subject" placeholder="alerts.production" value="${_esc(existingCfg.subject || 'alerts.notification_engine')}" />
+            <span class="params-hint">NATS subject (topic) to publish alerts to. Subscribers listen on this subject.</span>
+          </div>
+          <div class="notifier-info-msg" style="margin-top:10px">
+            Each alert is published as a JSON message: <code>{ rule, message, triggered_at, data }</code>.<br>
+            Any NATS subscriber on this subject will receive it instantly — microservices, mobile apps, SCADA systems.
+          </div>`;
+        break;
       case 'websocket':
         container.innerHTML = `
           <div class="notifier-info-msg">
-            No configuration needed. Alerts are pushed to all connected dashboard clients.
+            No configuration needed. Alerts are pushed to all connected dashboard clients in real time.
           </div>`;
         break;
       default:
@@ -2577,6 +2596,11 @@ class MyCustomRule(BaseRule):
         const timeoutEl = document.getElementById(containerId + '-timeout');
         const timeout = timeoutEl ? (parseInt(timeoutEl.value, 10) || 5000) : 5000;
         return { timeout };
+      }
+      case 'nats': {
+        const url     = (document.getElementById(containerId + '-url')     || {}).value || 'nats://localhost:4222';
+        const subject = (document.getElementById(containerId + '-subject') || {}).value || 'alerts.notification_engine';
+        return { url, subject };
       }
       case 'websocket':
         return {};
